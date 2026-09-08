@@ -72,10 +72,10 @@ function buildSeed(): DbShape {
       id,
       transaction_reference: `TXN-${id}`,
       user_id: 1,
-      card_reference: CARDS[Math.floor(rand() * CARDS.length)],
+      card_reference: CARDS[Math.floor(rand() * CARDS.length)]!,
       amount,
-      transaction_type: TYPES[Math.floor(rand() * TYPES.length)],
-      location: LOCATIONS[Math.floor(rand() * LOCATIONS.length)],
+      transaction_type: TYPES[Math.floor(rand() * TYPES.length)]!,
+      location: LOCATIONS[Math.floor(rand() * LOCATIONS.length)]!,
       transaction_date: date.toISOString(),
       status: "processed",
       fraud_status: "normal",
@@ -95,7 +95,7 @@ function buildSeed(): DbShape {
       tx.fraud_status = "suspicious";
       const alertId = ++db.sequences.alert;
       const statuses: AlertStatus[] = ["New", "Under Review", "Reviewed", "Resolved"];
-      const status = statuses[Math.floor(rand() * statuses.length)];
+      const status = statuses[Math.floor(rand() * statuses.length)]!;
       db.alerts.push({
         id: alertId,
         transaction_id: tx.id,
@@ -103,7 +103,7 @@ function buildSeed(): DbShape {
         amount: tx.amount,
         location: tx.location,
         transaction_date: tx.transaction_date,
-        rule_name: outcome.triggered_rules[0],
+        rule_name: outcome.triggered_rules[0]!,
         triggered_rules: outcome.triggered_rules,
         reason: outcome.reasons.join(" "),
         alert_status: status,
