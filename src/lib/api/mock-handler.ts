@@ -26,8 +26,8 @@ type Query = Record<string, string | number | undefined | null>;
 
 interface Ctx {
   method: string;
-  body?: unknown;
-  query?: Query;
+  body?: unknown | undefined;
+  query?: Query | undefined;
   token: string | null;
 }
 
