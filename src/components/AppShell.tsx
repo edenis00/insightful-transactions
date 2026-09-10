@@ -115,6 +115,15 @@ export function AppShell({
               <div className="hidden items-center gap-2 text-[11px] text-mut sm:flex">
                 <span className="size-1.5 rounded-full bg-clear" /> Live
               </div>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+                className="grid size-8 place-items-center rounded-md bg-panel text-mut ring-1 ring-inset ring-line transition-colors hover:text-ink"
+              >
+                {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
+              </button>
               <div className="h-8 w-px bg-line" />
               <div className="text-right leading-tight">
                 <div className="text-[12px]">{user?.full_name}</div>
