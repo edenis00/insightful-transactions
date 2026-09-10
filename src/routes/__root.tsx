@@ -124,6 +124,14 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
+  useEffect(() => {
+    // Apply the saved light/dark preference on first load (default: dark).
+    document.documentElement.classList.toggle(
+      "light",
+      window.localStorage.getItem("vantage_theme") === "light",
+    );
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
