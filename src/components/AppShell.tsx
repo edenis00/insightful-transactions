@@ -1,7 +1,9 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { Moon, Sun } from "lucide-react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/lib/auth";
+import { useTheme } from "@/lib/theme";
 import { analysisApi } from "@/lib/api/services";
 
 const monitorLinks = [
@@ -22,6 +24,7 @@ export function AppShell({
   children: ReactNode;
 }) {
   const { user, logout } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const { data: summary } = useQuery({
