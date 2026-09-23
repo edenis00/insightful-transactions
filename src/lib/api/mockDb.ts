@@ -1,35 +1,57 @@
 /**
  * In-memory demonstration data store. Stands in for the MySQL database
  * accessed by the Python backend until the REST API is available.
+ *
+ * Seeds a small organisation: departments, issued corporate cards,
+ * authorised users, simulated transactions, detection alerts and audit logs.
  */
 import type {
   AlertStatus,
+  AuditLog,
+  Card,
+  Department,
   FraudAlert,
   Report,
+  Severity,
+  TimelineEvent,
   Transaction,
   User,
 } from "./types";
-import { evaluateRules } from "./rules";
+import { evaluateRules, highestSeverity } from "./rules";
 
-const STORAGE_KEY = "vantage_demo_db_v1";
+const STORAGE_KEY = "vantage_corporate_db_v1";
 
-interface DbShape {
+export interface DbShape {
+  departments: Department[];
   users: Array<User & { password: string }>;
+  cards: Card[];
   transactions: Transaction[];
   alerts: FraudAlert[];
+  auditLogs: AuditLog[];
   reports: Report[];
-  sequences: { user: number; transaction: number; alert: number; report: number };
+  timelines: Record<number, TimelineEvent[]>;
+  sequences: {
+    department: number;
+    user: number;
+    card: number;
+    transaction: number;
+    alert: number;
+    report: number;
+    audit: number;
+  };
 }
 
-const TYPES = ["Online Purchase", "ATM Withdrawal", "In-Store", "Transfer"];
 const LOCATIONS = ["Lagos", "Abuja", "Kano", "Enugu", "Port Harcourt", "Ibadan"];
-const CARDS = [
-  "**** **** **** 1234",
-  "**** **** **** 8890",
-  "**** **** **** 4471",
-  "**** **** **** 3320",
-  "**** **** **** 9012",
-  "**** **** **** 6645",
+const TYPES = ["Purchase", "Online Payment", "ATM Withdrawal", "Transfer", "Fuel", "Travel"];
+const MERCHANTS = [
+  "ABC Equipment Ltd.",
+  "Tridax Office Supplies",
+  "Zenith Logistics",
+  "Nexus Fuel Stations",
+  "Cavendish Travel",
+  "Grid Technologies",
+  "Marion Catering Services",
+  "Bluepoint Stationers",
 ];
 
 function seededRandom(seed: number) {
@@ -40,84 +62,276 @@ function seededRandom(seed: number) {
   };
 }
 
+const iso = (d: Date) => d.toISOString();
+
 function buildSeed(): DbShape {
-  const rand = seededRandom(20260908);
+  const rand = seededRandom(20260923);
+  const createdAt = iso(new Date("2026-01-12T09:00:00"));
+
+  const departmentSeed = [
+    ["FIN", "Finance", "Treasury, payments and expenditure control."],
+    ["PRC", "Procurement", "Supplier purchasing and equipment acquisition."],
+    ["ADM", "Administration", "Facilities, logistics and office operations."],
+    ["ICT", "ICT", "Systems, hardware and technical services."],
+    ["HRM", "Human Resources", "Staffing, welfare and training expenditure."],
+    ["OPS", "Operations", "Field operations and service delivery."],
+  ] as const;
+
+  const departments: Department[] = departmentSeed.map(([code, name, description], i) => ({
+    id: i + 1,
+    department_code: code,
+    name,
+    description,
+    status: "active",
+    card_count: 0,
+    user_count: 0,
+    created_at: createdAt,
+    updated_at: createdAt,
+  }));
+
+  const userSeed: Array<[string, string, string, number, User["role"]]> = [
+    ["EMP-0001", "A. Okafor", "admin@vantage.demo", 1, "ADMIN"],
+    ["EMP-0002", "T. Balogun", "analyst@vantage.demo", 1, "FRAUD_ANALYST"],
+    ["EMP-0003", "John A. Eze", "john.eze@vantage.demo", 2, "CARD_USER"],
+    ["EMP-0004", "M. Adeyemi", "m.adeyemi@vantage.demo", 2, "CARD_USER"],
+    ["EMP-0005", "C. Nwankwo", "c.nwankwo@vantage.demo", 3, "CARD_USER"],
+    ["EMP-0006", "S. Lawal", "s.lawal@vantage.demo", 4, "CARD_USER"],
+    ["EMP-0007", "K. Danjuma", "k.danjuma@vantage.demo", 5, "CARD_USER"],
+    ["EMP-0008", "R. Obi", "r.obi@vantage.demo", 6, "CARD_USER"],
+    ["EMP-0009", "F. Yusuf", "f.yusuf@vantage.demo", 6, "CARD_USER"],
+  ];
+
+  const users: DbShape["users"] = userSeed.map(
+    ([employee_id, full_name, email, department_id, role], i) => ({
+      id: i + 1,
+      employee_id,
+      full_name,
+      email,
+      password: "vantage123",
+      department_id,
+      department_name: departments.find((d) => d.id === department_id)!.name,
+      role,
+      status: "active",
+      created_at: createdAt,
+      updated_at: createdAt,
+    }),
+  );
+
+  const cardSeed: Array<[string, number, number | null, string]> = [
+    ["4521", 1, 1, "Corporate Purchase"],
+    ["8890", 2, 3, "Corporate Purchase"],
+    ["4471", 2, 4, "Procurement"],
+    ["3320", 3, 5, "Administration"],
+    ["9012", 4, 6, "Technical Services"],
+    ["6645", 5, 7, "Welfare"],
+    ["7718", 6, 8, "Field Operations"],
+    ["2204", 6, 9, "Field Operations"],
+    ["5590", 1, 2, "Treasury"],
+    ["1187", 4, null, "Technical Services"],
+  ];
+
+  const cards: Card[] = cardSeed.map(([last4, department_id, assigned_user_id, card_type], i) => {
+    const dept = departments.find((d) => d.id === department_id)!;
+    const holder = users.find((u) => u.id === assigned_user_id) ?? null;
+    return {
+      id: i + 1,
+      card_reference: `CARD-${1000 + i + 1}`,
+      masked_card_number: `**** **** **** ${last4}`,
+      department_id,
+      department_name: dept.name,
+      assigned_user_id: holder?.id ?? null,
+      assigned_user_name: holder?.full_name ?? null,
+      card_type,
+      issue_date: "2025-11-01",
+      expiry_date: "2028-10-31",
+      status: assigned_user_id === null ? "inactive" : "active",
+      created_at: createdAt,
+      updated_at: createdAt,
+    };
+  });
+
   const db: DbShape = {
-    users: [
-      {
-        id: 1,
-        full_name: "A. Okafor",
-        email: "analyst@vantage.demo",
-        password: "vantage123",
-        role: "admin",
-        created_at: new Date("2026-01-12T09:00:00").toISOString(),
-      },
-    ],
+    departments,
+    users,
+    cards,
     transactions: [],
     alerts: [],
+    auditLogs: [],
     reports: [],
-    sequences: { user: 1, transaction: 10000, alert: 500, report: 0 },
+    timelines: {},
+    sequences: {
+      department: departments.length,
+      user: users.length,
+      card: cards.length,
+      transaction: 10000,
+      alert: 500,
+      report: 0,
+      audit: 0,
+    },
   };
 
+  const activeCards = cards.filter((c) => c.status === "active" && c.assigned_user_id);
   const now = Date.now();
-  for (let i = 0; i < 220; i++) {
-    const daysAgo = Math.floor(rand() * 14);
-    const date = new Date(now - daysAgo * 86400000 - Math.floor(rand() * 86400000));
+
+  for (let i = 0; i < 260; i++) {
+    const card = activeCards[Math.floor(rand() * activeCards.length)]!;
+    const holder = users.find((u) => u.id === card.assigned_user_id)!;
+    const daysAgo = Math.floor(rand() * 21);
+    const when = new Date(now - daysAgo * 86400000 - Math.floor(rand() * 86400000));
     const big = rand() > 0.9;
     const amount = big
-      ? Math.round((200000 + rand() * 1200000) / 500) * 500
-      : Math.round((1500 + rand() * 150000) / 100) * 100;
+      ? Math.round((500_000 + rand() * 900_000) / 500) * 500
+      : Math.round((8_000 + rand() * 180_000) / 100) * 100;
     const id = ++db.sequences.transaction;
-    const tx: Transaction = {
+    db.transactions.push({
       id,
       transaction_reference: `TXN-${id}`,
-      user_id: 1,
-      card_reference: CARDS[Math.floor(rand() * CARDS.length)]!,
+      card_id: card.id,
+      card_reference: card.card_reference,
+      masked_card_number: card.masked_card_number,
+      user_id: holder.id,
+      user_name: holder.full_name,
+      department_id: card.department_id,
+      department_name: card.department_name,
       amount,
-      transaction_type: TYPES[Math.floor(rand() * TYPES.length)]!,
+      currency: "NGN",
+      merchant: MERCHANTS[Math.floor(rand() * MERCHANTS.length)]!,
       location: LOCATIONS[Math.floor(rand() * LOCATIONS.length)]!,
-      transaction_date: date.toISOString(),
-      status: "processed",
-      fraud_status: "normal",
-      created_at: date.toISOString(),
-    };
-    db.transactions.push(tx);
+      transaction_type: TYPES[Math.floor(rand() * TYPES.length)]!,
+      transaction_time: iso(when),
+      description: "Official departmental expenditure.",
+      status: "Normal",
+      authorised: true,
+      created_at: iso(when),
+      updated_at: iso(when),
+    });
   }
 
   db.transactions.sort(
-    (a, b) => +new Date(a.transaction_date) - +new Date(b.transaction_date),
+    (a, b) => +new Date(a.transaction_time) - +new Date(b.transaction_time),
   );
+
+  const alertStatuses: AlertStatus[] = [
+    "New",
+    "Under Review",
+    "Confirmed",
+    "False Positive",
+    "Resolved",
+  ];
 
   const processed: Transaction[] = [];
   for (const tx of db.transactions) {
-    const outcome = evaluateRules(tx, processed);
-    if (outcome.triggered_rules.length > 0) {
-      tx.fraud_status = "suspicious";
+    const triggered = evaluateRules(tx, processed);
+    const base = new Date(tx.transaction_time).getTime();
+    const timeline: TimelineEvent[] = [
+      { event: "Transaction Submitted", timestamp: iso(new Date(base)) },
+      { event: "Transaction Recorded", timestamp: iso(new Date(base + 1000)) },
+      { event: "Rule Evaluation Started", timestamp: iso(new Date(base + 1500)) },
+    ];
+
+    if (triggered.length > 0) {
+      const severity: Severity = highestSeverity(triggered);
+      const status = alertStatuses[Math.floor(rand() * alertStatuses.length)]!;
+      tx.status = status === "False Positive" ? "Reviewed" : status === "Resolved" ? "Resolved" : "Suspicious";
       const alertId = ++db.sequences.alert;
-      const statuses: AlertStatus[] = ["New", "Under Review", "Reviewed", "Resolved"];
-      const status = statuses[Math.floor(rand() * statuses.length)]!;
+      const primary = triggered[0]!;
+      const reviewed = status === "New" ? null : iso(new Date(base + 180000));
       db.alerts.push({
         id: alertId,
+        alert_reference: `ALT-${alertId}`,
         transaction_id: tx.id,
         transaction_reference: tx.transaction_reference,
+        rule_id: primary.rule_id,
+        rule_code: primary.rule_code,
+        rule_name: primary.rule_name,
+        triggered_rules: triggered.map((r) => r.rule_name),
+        card_id: tx.card_id,
+        masked_card_number: tx.masked_card_number,
+        user_id: tx.user_id,
+        user_name: tx.user_name,
+        department_id: tx.department_id,
+        department_name: tx.department_name,
         amount: tx.amount,
         location: tx.location,
-        transaction_date: tx.transaction_date,
-        rule_name: outcome.triggered_rules[0]!,
-        triggered_rules: outcome.triggered_rules,
-        reason: outcome.reasons.join(" "),
-        alert_status: status,
-        created_at: tx.transaction_date,
-        reviewed_at: status === "New" ? null : tx.transaction_date,
+        reason: triggered.map((r) => r.reason).join(" "),
+        severity,
+        status,
+        detected_at: iso(new Date(base + 2000)),
+        reviewed_at: reviewed,
+        reviewed_by: reviewed ? "T. Balogun" : null,
+        resolution_note:
+          status === "Resolved"
+            ? "Expenditure confirmed against departmental approval record."
+            : status === "False Positive"
+              ? "Reviewed and cleared — authorised departmental purchase."
+              : null,
+      });
+      timeline.push(
+        {
+          event: "Suspicious Pattern Detected",
+          timestamp: iso(new Date(base + 1800)),
+          detail: primary.rule_name,
+        },
+        {
+          event: "Fraud Alert Generated",
+          timestamp: iso(new Date(base + 2000)),
+          detail: `ALT-${alertId} · ${severity} severity`,
+        },
+      );
+      if (reviewed) {
+        timeline.push({ event: "Transaction Reviewed", timestamp: reviewed, detail: "T. Balogun" });
+      }
+      if (status === "Resolved") {
+        timeline.push({ event: "Alert Resolved", timestamp: iso(new Date(base + 360000)) });
+      }
+    } else {
+      timeline.push({
+        event: "Rule Evaluation Completed",
+        timestamp: iso(new Date(base + 1800)),
+        detail: "No rule triggered",
       });
     }
+
+    db.timelines[tx.id] = timeline;
     processed.push(tx);
   }
 
   db.transactions.sort(
-    (a, b) => +new Date(b.transaction_date) - +new Date(a.transaction_date),
+    (a, b) => +new Date(b.transaction_time) - +new Date(a.transaction_time),
   );
   db.alerts.sort((a, b) => b.id - a.id);
+
+  for (const d of db.departments) {
+    d.card_count = db.cards.filter((c) => c.department_id === d.id).length;
+    d.user_count = db.users.filter((u) => u.department_id === d.id).length;
+  }
+
+  db.auditLogs = [
+    { action: "Departments initialised", entity_type: "Department", details: "6 departments created." },
+    { action: "Cards issued", entity_type: "Card", details: `${db.cards.length} corporate cards issued.` },
+    { action: "Users registered", entity_type: "User", details: `${db.users.length} authorised users registered.` },
+    {
+      action: "Simulation batch recorded",
+      entity_type: "Transaction",
+      details: `${db.transactions.length} simulated transactions recorded.`,
+    },
+    {
+      action: "Detection run completed",
+      entity_type: "FraudAlert",
+      details: `${db.alerts.length} fraud alerts generated.`,
+    },
+  ].map((entry, i) => ({
+    id: ++db.sequences.audit,
+    user_id: 1,
+    user_name: "A. Okafor",
+    action: entry.action,
+    entity_type: entry.entity_type,
+    entity_id: null,
+    timestamp: iso(new Date(Date.now() - (5 - i) * 60000)),
+    details: entry.details,
+  }));
+  db.auditLogs.reverse();
+
   return db;
 }
 
@@ -144,4 +358,25 @@ export function getDb(): DbShape {
 export function persist() {
   if (typeof window === "undefined" || !cache) return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
+}
+
+export function audit(
+  action: string,
+  entity_type: string,
+  entity_id: number | null,
+  details: string,
+  user: { id: number; full_name: string } | null,
+) {
+  const db = getDb();
+  db.auditLogs.unshift({
+    id: ++db.sequences.audit,
+    user_id: user?.id ?? null,
+    user_name: user?.full_name ?? "System",
+    action,
+    entity_type,
+    entity_id,
+    timestamp: new Date().toISOString(),
+    details,
+  });
+  db.auditLogs = db.auditLogs.slice(0, 200);
 }
