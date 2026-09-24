@@ -1,16 +1,23 @@
 import { apiRequest } from "./client";
+import type { RuleDefinition } from "./rules";
 import type {
-  AnalysisSummary,
   AlertStatus,
+  AnalysisBreakdown,
+  AuditLog,
+  Card,
+  DashboardSummary,
+  Department,
   FraudAlert,
-  FraudStats,
-  GroupBucket,
+  FraudRule,
   Paginated,
   Report,
+  Role,
   Transaction,
+  TransactionDetail,
   TransactionResult,
   TrendPoint,
   User,
+  UserProfile,
 } from "./types";
 
 export interface AuthPayload {
@@ -20,22 +27,60 @@ export interface AuthPayload {
 
 export const authApi = {
   login: (email: string, password: string) =>
-    apiRequest<AuthPayload>("/api/auth/login", { method: "POST", body: { email, password } }),
-  register: (full_name: string, email: string, password: string) =>
-    apiRequest<AuthPayload>("/api/auth/register", {
-      method: "POST",
-      body: { full_name, email, password },
-    }),
-  logout: () => apiRequest<void>("/api/auth/logout", { method: "POST" }),
-  me: () => apiRequest<User>("/api/auth/me"),
+    apiRequest<AuthPayload>("/api/v1/auth/login", { method: "POST", body: { email, password } }),
+  logout: () => apiRequest<void>("/api/v1/auth/logout", { method: "POST" }),
+  me: () => apiRequest<User>("/api/v1/auth/me"),
+};
+
+export const departmentsApi = {
+  list: () => apiRequest<Department[]>("/api/v1/departments"),
+  get: (id: number) => apiRequest<Department>(`/api/v1/departments/${id}`),
+  create: (payload: { department_code: string; name: string; description: string }) =>
+    apiRequest<Department>("/api/v1/departments", { method: "POST", body: payload }),
+  update: (id: number, payload: Partial<Department>) =>
+    apiRequest<Department>(`/api/v1/departments/${id}`, { method: "PUT", body: payload }),
+};
+
+export const cardsApi = {
+  list: (query: { department_id?: number; status?: string; search?: string } = {}) =>
+    apiRequest<Card[]>("/api/v1/cards", { query: query as never }),
+  create: (payload: {
+    last_four: string;
+    department_id: number;
+    assigned_user_id: number | null;
+    card_type: string;
+    issue_date: string;
+    expiry_date: string;
+  }) => apiRequest<Card>("/api/v1/cards", { method: "POST", body: payload }),
+  update: (
+    id: number,
+    payload: { assigned_user_id?: number | null; status?: "active" | "inactive"; card_type?: string },
+  ) => apiRequest<Card>(`/api/v1/cards/${id}`, { method: "PUT", body: payload }),
+};
+
+export const usersApi = {
+  list: (query: { department_id?: number; search?: string } = {}) =>
+    apiRequest<User[]>("/api/v1/users", { query: query as never }),
+  get: (id: number) => apiRequest<UserProfile>(`/api/v1/users/${id}`),
+  create: (payload: {
+    full_name: string;
+    email: string;
+    employee_id: string;
+    department_id: number;
+    role: Role;
+  }) => apiRequest<User>("/api/v1/users", { method: "POST", body: payload }),
+  update: (id: number, payload: Partial<User>) =>
+    apiRequest<UserProfile>(`/api/v1/users/${id}`, { method: "PUT", body: payload }),
 };
 
 export interface TransactionQuery {
-  reference?: string;
+  search?: string;
+  department_id?: number | string;
+  card_id?: number | string;
+  user_id?: number | string;
   transaction_type?: string;
   location?: string;
   status?: string;
-  fraud_status?: string;
   min_amount?: string;
   max_amount?: string;
   start_date?: string;
@@ -45,50 +90,68 @@ export interface TransactionQuery {
 }
 
 export interface NewTransaction {
-  transaction_reference: string;
-  card_reference: string;
+  card_id: number;
+  user_id: number;
   amount: number;
-  transaction_type: string;
+  merchant: string;
   location: string;
-  transaction_date: string;
+  transaction_type: string;
+  transaction_time: string;
+  description: string;
 }
 
 export const transactionsApi = {
   create: (payload: NewTransaction) =>
-    apiRequest<TransactionResult>("/api/transactions", { method: "POST", body: payload }),
+    apiRequest<TransactionResult>("/api/v1/transactions", { method: "POST", body: payload }),
   list: (query: TransactionQuery = {}) =>
-    apiRequest<Paginated<Transaction>>("/api/transactions", { query: query as never }),
-  search: (query: TransactionQuery = {}) =>
-    apiRequest<Paginated<Transaction>>("/api/transactions/search", { query: query as never }),
-  get: (id: number) => apiRequest<Transaction>(`/api/transactions/${id}`),
+    apiRequest<Paginated<Transaction>>("/api/v1/transactions", { query: query as never }),
+  get: (id: number) => apiRequest<TransactionDetail>(`/api/v1/transactions/${id}`),
+  simulateBatch: (scenario: "normal" | "suspicious") =>
+    apiRequest<TransactionResult[]>("/api/v1/simulation/batch", {
+      method: "POST",
+      body: { scenario },
+    }),
 };
 
 export const alertsApi = {
-  list: (query: { alert_status?: string; search?: string; page?: number; page_size?: number } = {}) =>
-    apiRequest<Paginated<FraudAlert>>("/api/alerts", { query: query as never }),
-  get: (id: number) => apiRequest<FraudAlert>(`/api/alerts/${id}`),
-  updateStatus: (id: number, alert_status: AlertStatus) =>
-    apiRequest<FraudAlert>(`/api/alerts/${id}`, { method: "PUT", body: { alert_status } }),
+  list: (
+    query: {
+      status?: string;
+      severity?: string;
+      department_id?: number | string;
+      search?: string;
+      page?: number;
+      page_size?: number;
+    } = {},
+  ) => apiRequest<Paginated<FraudAlert>>("/api/v1/alerts", { query: query as never }),
+  get: (id: number) => apiRequest<FraudAlert>(`/api/v1/alerts/${id}`),
+  updateStatus: (id: number, status: AlertStatus, resolution_note?: string) =>
+    apiRequest<FraudAlert>(`/api/v1/alerts/${id}`, {
+      method: "PATCH",
+      body: { status, resolution_note },
+    }),
+};
+
+export const rulesApi = {
+  list: () => apiRequest<FraudRule[]>("/api/v1/rules"),
+  definitions: () => apiRequest<RuleDefinition[]>("/api/v1/rules/definitions"),
 };
 
 export const analysisApi = {
   summary: (query: TransactionQuery = {}) =>
-    apiRequest<AnalysisSummary>("/api/analysis/summary", { query: query as never }),
-  trends: (days = 14) => apiRequest<TrendPoint[]>("/api/analysis/trends", { query: { days } }),
-  byType: (query: TransactionQuery = {}) =>
-    apiRequest<GroupBucket[]>("/api/analysis/by-type", { query: query as never }),
-  byLocation: (query: TransactionQuery = {}) =>
-    apiRequest<GroupBucket[]>("/api/analysis/by-location", { query: query as never }),
-  fraud: () => apiRequest<FraudStats>("/api/analysis/fraud"),
-  rules: () =>
-    apiRequest<{ amountThreshold: number; frequencyLimit: number; frequencyWindowMinutes: number }>(
-      "/api/analysis/rules",
-    ),
+    apiRequest<DashboardSummary>("/api/v1/analysis/summary", { query: query as never }),
+  trends: (days = 14) => apiRequest<TrendPoint[]>("/api/v1/analysis/trends", { query: { days } }),
+  breakdown: (query: TransactionQuery = {}) =>
+    apiRequest<AnalysisBreakdown>("/api/v1/analysis/breakdown", { query: query as never }),
+};
+
+export const auditApi = {
+  list: (limit = 40) => apiRequest<AuditLog[]>("/api/v1/audit-logs", { query: { limit } }),
 };
 
 export const reportsApi = {
   generate: (payload: { report_type: string; start_date: string; end_date: string }) =>
-    apiRequest<Report>("/api/reports/generate", { method: "POST", body: payload }),
-  list: () => apiRequest<Report[]>("/api/reports"),
-  get: (id: number) => apiRequest<Report>(`/api/reports/${id}`),
+    apiRequest<Report>("/api/v1/reports/generate", { method: "POST", body: payload }),
+  list: () => apiRequest<Report[]>("/api/v1/reports"),
+  get: (id: number) => apiRequest<Report>(`/api/v1/reports/${id}`),
 };
