@@ -158,3 +158,19 @@ export function highestSeverity(rules: TriggeredRule[]): Severity {
   if (rules.some((r) => r.severity === "Medium")) return "Medium";
   return "Low";
 }
+
+// Restore administrator-configured thresholds (demo persistence only).
+if (typeof window !== "undefined") {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem("vantage_rule_overrides") ?? "{}") as Record<string, number>;
+    for (const def of RULE_DEFINITIONS) {
+      const v = saved[def.rule_code];
+      if (typeof v === "number" && v > 0) {
+        def.threshold = v;
+        def.threshold_label = def.threshold_label.replace(/[₦\d,.]+/, def.rule_code === "HIGH_AMOUNT" ? `₦${v.toLocaleString()}` : String(v));
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+}
