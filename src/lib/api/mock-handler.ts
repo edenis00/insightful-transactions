@@ -137,6 +137,8 @@ function rulesWithCounts(): FraudRule[] {
   const db = getDb();
   return FRAUD_RULES.map((r) => ({
     ...r,
+    threshold: RULE_DEFINITIONS.find((d) => d.rule_code === r.rule_code)!.threshold,
+    threshold_label: RULE_DEFINITIONS.find((d) => d.rule_code === r.rule_code)!.threshold_label,
     alert_count: db.alerts.filter((a) => a.triggered_rules.includes(r.rule_name)).length,
   }));
 }
