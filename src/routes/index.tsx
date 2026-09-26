@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api/client";
@@ -72,7 +72,7 @@ function LoginPage() {
 
         <div className="rounded-lg bg-surface p-5 ring-1 ring-inset ring-line">
           <h1 className="font-display text-[16px] font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-[10px] text-faint">Authorised fraud analysts only</p>
+          <p className="mt-1 text-[10px] text-faint">Corporate card monitoring · authorised staff only</p>
 
           {expired ? (
             <div className="mt-4 rounded-md bg-warn/10 px-3 py-2 text-[11px] text-warn ring-1 ring-inset ring-warn/30">
@@ -112,10 +112,11 @@ function LoginPage() {
           </form>
 
           <div className="mt-4 border-t border-line/70 pt-3 text-[10px] text-faint">
-            No account?{" "}
-            <Link to="/register" className="text-mut transition-colors hover:text-ink">
-              Register an analyst account
-            </Link>
+            Accounts are issued by the administrator. Demo logins (password vantage123):
+            <div className="mt-1 space-y-0.5 text-mut">
+              <div>admin@vantage.demo · Administrator</div>
+              <div>analyst@vantage.demo · Fraud Analyst</div>
+            </div>
           </div>
         </div>
 

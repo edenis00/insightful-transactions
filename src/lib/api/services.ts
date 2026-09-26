@@ -135,6 +135,8 @@ export const alertsApi = {
 export const rulesApi = {
   list: () => apiRequest<FraudRule[]>("/api/v1/rules"),
   definitions: () => apiRequest<RuleDefinition[]>("/api/v1/rules/definitions"),
+  update: (code: string, threshold: number) =>
+    apiRequest<FraudRule>(`/api/v1/rules/${code}`, { method: "PUT", body: { threshold } }),
 };
 
 export const analysisApi = {

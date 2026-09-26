@@ -6,13 +6,23 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { analysisApi } from "@/lib/api/services";
 
-const monitorLinks = [
-  { to: "/dashboard", label: "Dashboard", alarm: false },
-  { to: "/transactions", label: "Transactions", alarm: false },
+type NavItem = { to: "/dashboard" | "/transactions" | "/transactions/new" | "/alerts" | "/analysis" | "/reports" | "/departments" | "/cards" | "/users" | "/rules" | "/audit"; label: string; alarm?: boolean; admin?: boolean };
+const monitorLinks: NavItem[] = [
+  { to: "/dashboard", label: "Dashboard" },
+  { to: "/transactions/new", label: "Record Transaction" },
+  { to: "/transactions", label: "Transactions" },
   { to: "/alerts", label: "Alerts", alarm: true },
-  { to: "/analysis", label: "Analysis", alarm: false },
-  { to: "/reports", label: "Reports", alarm: false },
-] as const;
+  { to: "/analysis", label: "Analysis", admin: true },
+  { to: "/reports", label: "Reports", admin: true },
+];
+const orgLinks: NavItem[] = [
+  { to: "/departments", label: "Departments", admin: true },
+  { to: "/cards", label: "Cards", admin: true },
+  { to: "/users", label: "Users", admin: true },
+  { to: "/rules", label: "Detection Rules", admin: true },
+  { to: "/audit", label: "Audit Log", admin: true },
+];
+const ROLE_LABEL = { ADMIN: "Administrator", FRAUD_ANALYST: "Fraud Analyst", CARD_USER: "Card User" } as const;
 
 export function AppShell({
   title,
@@ -33,6 +43,9 @@ export function AppShell({
     staleTime: 30_000,
   });
 
+  const isStaff = user?.role !== "CARD_USER";
+  const monitor = monitorLinks.filter((l) => isStaff || !l.admin);
+  const org = isStaff ? orgLinks : [];
   const initials = (user?.full_name ?? "AO")
     .split(" ")
     .map((p) => p[0])
@@ -55,14 +68,37 @@ export function AppShell({
             </div>
             <div className="leading-tight">
               <div className="font-display text-[13px] font-semibold tracking-tight">Vantage</div>
-              <div className="text-[9px] uppercase tracking-[0.18em] text-faint">Fraud Console</div>
+              <div className="text-[9px] uppercase tracking-[0.18em] text-faint">Card Monitoring</div>
             </div>
             <span className="ml-auto size-1.5 animate-pulse rounded-full bg-alarm" />
           </div>
 
           <nav className="flex-1 p-2">
             <div className="px-2 py-2 text-[9px] uppercase tracking-[0.2em] text-faint">Monitor</div>
-            {monitorLinks.map((item) => (
+            {monitor.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                activeOptions={{ exact: true }}
+                className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[12.5px] text-mut transition-colors hover:bg-panel/60 hover:text-ink"
+                activeProps={{
+                  className:
+                    "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[12.5px] bg-gradient-to-r from-alarm/12 to-transparent text-ink ring-1 ring-inset ring-alarm/20",
+                }}
+              >
+                <span className={`size-1.5 rounded-full ${item.alarm ? "bg-alarm" : "bg-faint"}`} />
+                {item.label}
+                {item.alarm && summary?.active_alerts ? (
+                  <span className="ml-auto text-[10px] font-semibold text-alarm">
+                    {summary.new_alerts}
+                  </span>
+                ) : null}
+              </Link>
+            ))}
+            {org.length ? (
+              <div className="px-2 pt-4 pb-2 text-[9px] uppercase tracking-[0.2em] text-faint">Organisation</div>
+            ) : null}
+            {org.map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
@@ -72,27 +108,10 @@ export function AppShell({
                     "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[12.5px] bg-gradient-to-r from-alarm/12 to-transparent text-ink ring-1 ring-inset ring-alarm/20",
                 }}
               >
-                <span className={`size-1.5 rounded-full ${item.alarm ? "bg-alarm" : "bg-faint"}`} />
+                <span className="size-1.5 rounded-full bg-faint" />
                 {item.label}
-                {item.alarm && summary?.new_alerts ? (
-                  <span className="ml-auto text-[10px] font-semibold text-alarm">
-                    {summary.new_alerts}
-                  </span>
-                ) : null}
               </Link>
             ))}
-            <div className="px-2 pt-4 pb-2 text-[9px] uppercase tracking-[0.2em] text-faint">System</div>
-            <Link
-              to="/rules"
-              className="flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[12.5px] text-mut transition-colors hover:bg-panel/60 hover:text-ink"
-              activeProps={{
-                className:
-                  "flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[12.5px] bg-gradient-to-r from-alarm/12 to-transparent text-ink ring-1 ring-inset ring-alarm/20",
-              }}
-            >
-              <span className="size-1.5 rounded-full bg-faint" />
-              Rules Config
-            </Link>
           </nav>
 
           <div className="border-t border-line p-3">
@@ -100,7 +119,7 @@ export function AppShell({
               <div className="flex items-center gap-2 text-[10px] text-mut">
                 <span className="size-1.5 animate-pulse rounded-full bg-clear" /> Rules engine online
               </div>
-              <div className="mt-1 text-[9px] text-faint">Demonstration data only</div>
+              <div className="mt-1 text-[9px] text-faint">Simulated corporate-card data</div>
             </div>
           </div>
         </aside>
@@ -127,7 +146,7 @@ export function AppShell({
               <div className="h-8 w-px bg-line" />
               <div className="text-right leading-tight">
                 <div className="text-[12px]">{user?.full_name}</div>
-                <div className="text-[10px] text-faint capitalize">{user?.role}</div>
+                <div className="text-[10px] text-faint">{user ? ROLE_LABEL[user.role] : ""}</div>
               </div>
               <div className="grid size-8 place-items-center rounded-full bg-panel font-display text-[12px] font-semibold ring-1 ring-inset ring-line">
                 {initials}
@@ -142,10 +161,11 @@ export function AppShell({
           </header>
 
           <nav className="flex gap-1 overflow-x-auto border-b border-line px-3 py-2 md:hidden">
-            {monitorLinks.map((item) => (
+            {[...monitor, ...org].map((item) => (
               <Link
                 key={item.to}
                 to={item.to}
+                activeOptions={{ exact: true }}
                 className="whitespace-nowrap rounded-md px-2.5 py-1.5 text-[11.5px] text-mut"
                 activeProps={{
                   className:

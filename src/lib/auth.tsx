@@ -11,7 +11,6 @@ interface AuthState {
   loading: boolean;
   expired: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (fullName: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearExpired: () => void;
 }
@@ -84,14 +83,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(res.user);
   }, []);
 
-  const register = useCallback(async (fullName: string, email: string, password: string) => {
-    const res = await authApi.register(fullName, email, password);
-    setToken(res.token);
-    window.localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now()));
-    setExpired(false);
-    setUser(res.user);
-  }, []);
-
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -103,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, expired, login, register, logout, clearExpired: () => setExpired(false) }}
+      value={{ user, loading, expired, login, logout, clearExpired: () => setExpired(false) }}
     >
       {children}
     </AuthContext.Provider>

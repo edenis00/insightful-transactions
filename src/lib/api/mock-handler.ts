@@ -137,6 +137,8 @@ function rulesWithCounts(): FraudRule[] {
   const db = getDb();
   return FRAUD_RULES.map((r) => ({
     ...r,
+    threshold: RULE_DEFINITIONS.find((d) => d.rule_code === r.rule_code)!.threshold,
+    threshold_label: RULE_DEFINITIONS.find((d) => d.rule_code === r.rule_code)!.threshold_label,
     alert_count: db.alerts.filter((a) => a.triggered_rules.includes(r.rule_name)).length,
   }));
 }
@@ -649,6 +651,25 @@ export async function mockHandler<T>(path: string, ctx: Ctx): Promise<T> {
     return rulesWithCounts() as T;
   }
   if (path === "/api/v1/rules/definitions") return RULE_DEFINITIONS as T;
+  const ruleMatch = path.match(/^\/api\/v1\/rules\/([A-Z_]+)$/);
+  if (ruleMatch && method === "PUT") {
+    requireAdmin(actor);
+    const def = RULE_DEFINITIONS.find((r) => r.rule_code === ruleMatch[1]);
+    if (!def) throw new ApiError(404, "The requested record could not be found.");
+    const input = body as { threshold?: number };
+    if (input.threshold === undefined || !(Number(input.threshold) > 0))
+      throw new ApiError(422, "Threshold must be a positive number.");
+    def.threshold = Number(input.threshold);
+    def.threshold_label = def.threshold_label.replace(/[₦\d,.]+/, def.rule_code === "HIGH_AMOUNT" ? `₦${def.threshold.toLocaleString()}` : String(def.threshold));
+    try {
+      const saved = JSON.parse(localStorage.getItem("vantage_rule_overrides") ?? "{}");
+      saved[def.rule_code] = def.threshold;
+      localStorage.setItem("vantage_rule_overrides", JSON.stringify(saved));
+    } catch { /* ignore */ }
+    audit(`Rule threshold changed to ${def.threshold}`, "FraudRule", null, def.rule_code, actor);
+    persist();
+    return rulesWithCounts().find((r) => r.rule_code === def.rule_code) as T;
+  }
 
   // ---- Analysis ----
   if (path === "/api/v1/analysis/summary") {
