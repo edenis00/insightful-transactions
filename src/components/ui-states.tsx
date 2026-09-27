@@ -91,7 +91,7 @@ export const btnCls =
 export const primaryBtnCls =
   "rounded-md bg-alarm/90 px-3 py-1.5 text-[11.5px] font-medium text-bg transition-colors hover:bg-alarm disabled:opacity-60";
 
-export function Stat({ label, value, hint, alarm }: { label: string; value: string; hint?: string; alarm?: boolean }) {
+export function Stat({ label, value, hint, alarm }: { label: string; value: string; hint?: string | undefined; alarm?: boolean }) {
   return (
     <div className="rise rounded-lg bg-surface p-4 ring-1 ring-inset ring-line">
       <div className="text-[10px] uppercase tracking-[0.14em] text-faint">{label}</div>
@@ -101,7 +101,7 @@ export function Stat({ label, value, hint, alarm }: { label: string; value: stri
   );
 }
 
-export function FormField({ label, error, children }: { label: string; error?: string; children: ReactNode }) {
+export function FormField({ label, error, children }: { label: string; error?: string | undefined; children: ReactNode }) {
   return (
     <label className="block">
       <span className="mb-1 block text-[10px] uppercase tracking-[0.14em] text-faint">{label}</span>

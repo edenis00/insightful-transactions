@@ -6,21 +6,14 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { analysisApi } from "@/lib/api/services";
 
-type NavItem = { to: "/dashboard" | "/transactions" | "/transactions/new" | "/alerts" | "/analysis" | "/reports" | "/departments" | "/cards" | "/users" | "/rules" | "/audit"; label: string; alarm?: boolean; admin?: boolean };
+type NavItem = { to: "/dashboard" | "/transactions" | "/transactions/new" | "/alerts"; label: string; alarm?: boolean; admin?: boolean }; label: string; alarm?: boolean; admin?: boolean };
 const monitorLinks: NavItem[] = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/transactions/new", label: "Record Transaction" },
   { to: "/transactions", label: "Transactions" },
   { to: "/alerts", label: "Alerts", alarm: true },
-  { to: "/analysis", label: "Analysis", admin: true },
-  { to: "/reports", label: "Reports", admin: true },
 ];
 const orgLinks: NavItem[] = [
-  { to: "/departments", label: "Departments", admin: true },
-  { to: "/cards", label: "Cards", admin: true },
-  { to: "/users", label: "Users", admin: true },
-  { to: "/rules", label: "Detection Rules", admin: true },
-  { to: "/audit", label: "Audit Log", admin: true },
 ];
 const ROLE_LABEL = { ADMIN: "Administrator", FRAUD_ANALYST: "Fraud Analyst", CARD_USER: "Card User" } as const;
 
@@ -90,7 +83,7 @@ export function AppShell({
                 {item.label}
                 {item.alarm && summary?.active_alerts ? (
                   <span className="ml-auto text-[10px] font-semibold text-alarm">
-                    {summary.new_alerts}
+                    {summary.active_alerts}
                   </span>
                 ) : null}
               </Link>
