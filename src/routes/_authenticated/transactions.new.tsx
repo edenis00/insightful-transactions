@@ -35,7 +35,7 @@ function NewTransaction() {
     card_id: "", user_id: "", amount: "", merchant: "", location: "Lagos",
     transaction_type: "Purchase", transaction_time: toLocalInputValue(new Date()), description: "",
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<{ card_id?: string; user_id?: string; amount?: string; merchant?: string; transaction_time?: string }>({});
   const [result, setResult] = useState<TransactionResult[] | null>(null);
   const [error, setError] = useState("");
 
@@ -67,7 +67,7 @@ function NewTransaction() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const err: Record<string, string> = {};
+    const err: typeof errors = {};
     if (!v.card_id) err.card_id = "Select a card.";
     const uid = staff ? v.user_id : String(user?.id ?? "");
     if (!uid) err.user_id = "Select the user who made the transaction.";
