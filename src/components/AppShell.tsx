@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { analysisApi } from "@/lib/api/services";
 
-type NavItem = { to: "/dashboard" | "/transactions" | "/transactions/new" | "/alerts"; label: string; alarm?: boolean; admin?: boolean }; label: string; alarm?: boolean; admin?: boolean };
+type NavItem = { to: "/dashboard" | "/transactions" | "/transactions/new" | "/alerts"; label: string; alarm?: boolean; admin?: boolean };
 const monitorLinks: NavItem[] = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/transactions/new", label: "Record Transaction" },
