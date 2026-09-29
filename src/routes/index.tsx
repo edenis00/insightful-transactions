@@ -26,8 +26,8 @@ export const Route = createFileRoute("/")({
 function LoginPage() {
   const { login, user, loading, expired, clearExpired } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("analyst@vantage.demo");
-  const [password, setPassword] = useState("vantage123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);

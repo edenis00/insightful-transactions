@@ -43,8 +43,20 @@ function AnalysisPage() {
     <AppShell title="Transaction Analysis" subtitle="Patterns across volume, value and fraud outcomes">
       <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Transactions" value={s ? formatNumber(s.total_transactions) : "—"} />
-        <Stat label="Total value" value={s ? formatCompactCurrency(s.total_value) : "—"} />
-        <Stat label="Average value" value={s ? formatCompactCurrency(s.average_value) : "—"} />
+        <Stat
+          label="Total value"
+          value={s ? formatCompactCurrency(s.total_amount) : "—"}
+        />
+        <Stat
+          label="Average value"
+          value={
+            s
+              ? formatCompactCurrency(
+                  s.total_transactions ? s.total_amount / s.total_transactions : 0,
+                )
+              : "—"
+          }
+        />
         <Stat
           label="Suspicious rate"
           value={fraud.data ? `${(fraud.data.suspicious_rate * 100).toFixed(1)}%` : "—"}

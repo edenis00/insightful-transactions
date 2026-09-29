@@ -68,7 +68,8 @@ export async function apiRequest<T>(
   const token = getToken();
 
   if (!API_BASE_URL) {
-    return mockHandler<T>(path, { method, body, query, token });
+    const mockPath = path.replace(/^\/api(?:\/v1)?/i, "/api/v1");
+    return mockHandler<T>(mockPath, { method, body, query, token });
   }
 
   const res = await fetch(buildApiUrl(path, query), {

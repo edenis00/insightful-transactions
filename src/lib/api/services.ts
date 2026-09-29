@@ -10,7 +10,6 @@ import type {
   FraudAlert,
   FraudRule,
   Paginated,
-  Report,
   Role,
   Transaction,
   TransactionDetail,
@@ -121,33 +120,75 @@ export const usersApi = {
 };
 
 export interface TransactionQuery {
-  search?: string;
-  department_id?: number | string;
-  card_id?: number | string;
-  user_id?: number | string;
-  status?: string;
-  fraud_status?: string;
+  transaction_reference?: string;
+  transaction_type?: string;
+  location?: string;
+  fraud_status?: "normal" | "suspicious";
+  min_amount?: number;
+  max_amount?: number;
+  start_date?: string;
+  end_date?: string;
   page?: number;
-  limit?: number;
+  page_size?: number;
 }
 
 export const transactionsApi = {
   create: (payload: {
-    user_id: number;
+    transaction_reference: string;
     card_reference: string;
     amount: number;
     transaction_type: string;
     location: string;
-    description?: string;
-    department_id?: number | null;
-    card_id?: number | null;
-    merchant?: string;
-    currency?: string;
-    transaction_date?: string;
-  }) => apiRequest<TransactionResult>("/api/transactions", { method: "POST", body: payload }),
+    transaction_date: string;
+  }) =>
+    apiRequest<{
+      transaction: {
+        id: number;
+        transaction_reference: string;
+        card_reference: string;
+        amount: number;
+        transaction_type: string;
+        location: string;
+        transaction_date: string;
+        status: string;
+        fraud_status: string;
+      };
+      alert_generated: boolean;
+      alert_ids: number[];
+      triggered_rules: string[];
+    }>("/api/transactions", { method: "POST", body: payload }),
   list: (query: TransactionQuery = {}) =>
-    apiRequest<Paginated<Transaction>>("/api/transactions", { query: query as never }),
-  get: (id: number) => apiRequest<TransactionDetail>(`/api/transactions/${id}`),
+    apiRequest<{
+      items: Array<{
+        id: number;
+        transaction_reference: string;
+        card_reference: string;
+        amount: number;
+        transaction_type: string;
+        location: string;
+        transaction_date: string;
+        status: string;
+        fraud_status: "normal" | "suspicious";
+        created_at: string;
+      }>;
+      total: number;
+      page: number;
+      page_size: number;
+      total_pages: number;
+    }>("/api/transactions", { query: query as never }),
+  get: (id: number) =>
+    apiRequest<{
+      id: number;
+      transaction_reference: string;
+      card_reference: string;
+      amount: number;
+      transaction_type: string;
+      location: string;
+      transaction_date: string;
+      status: string;
+      fraud_status: "normal" | "suspicious";
+      created_at: string;
+    }>(`/api/transactions/${id}`),
   simulateBatch: (payload: { transactions: Array<Record<string, unknown>> }) =>
     apiRequest<TransactionResult[]>("/api/simulation/batch", {
       method: "POST",
@@ -155,14 +196,50 @@ export const transactionsApi = {
     }),
 };
 
+
+export type ApiAlertStatus = "new" | "under_review" | "reviewed" | "resolved";
+
+export interface ApiAlert {
+  id: number;
+  rule_name: string;
+  reason: string;
+  alert_status: ApiAlertStatus;
+  created_at: string;
+  reviewed_at: string | null;
+  transaction: {
+    id: number;
+    transaction_reference: string;
+    amount: number;
+    transaction_type: string;
+    location: string;
+    transaction_date: string;
+    fraud_status: "normal" | "suspicious";
+  };
+}
 export const alertsApi = {
-  list: (query: { page?: number; limit?: number; status?: AlertStatus } = {}) =>
-    apiRequest<Paginated<FraudAlert>>("/api/alerts", { query: query as never }),
-  get: (id: number) => apiRequest<FraudAlert>(`/api/alerts/${id}`),
-  update: (id: number, payload: { alert_status?: AlertStatus; review_notes?: string }) =>
-    apiRequest<FraudAlert>(`/api/alerts/${id}`, {
+  list: (
+    query: {
+      page?: number;
+      page_size?: number;
+      alert_status?: ApiAlertStatus;
+      rule_name?: string;
+      transaction_reference?: string;
+    } = {},
+  ) =>
+    apiRequest<{
+      items: ApiAlert[];
+      total: number;
+      page: number;
+      page_size: number;
+      total_pages: number;
+    }>("/api/alerts", { query: query as never }),
+
+  get: (id: number) => apiRequest<ApiAlert>(`/api/alerts/${id}`),
+
+  update: (id: number, alert_status: ApiAlertStatus) =>
+    apiRequest<ApiAlert>(`/api/alerts/${id}`, {
       method: "PUT",
-      body: payload,
+      body: { alert_status },
     }),
 };
 
@@ -182,16 +259,96 @@ export const analysisApi = {
   byType: () => apiRequest<{ label: string; value: number; count: number; suspicious: number }[]>("/api/analysis/by-type"),
   byLocation: () => apiRequest<{ label: string; value: number; count: number; suspicious: number }[]>("/api/analysis/by-location"),
   rules: () => apiRequest<Record<string, number>>("/api/analysis/rules"),
-  fraud: () => apiRequest<{ suspicious_rate: number; suspicious_transactions: number; total_transactions: number }>("/api/analysis/fraud"),
+  fraud: () =>
+    apiRequest<{
+      suspicious_rate: number;
+      suspicious_transactions: number;
+      total_transactions: number;
+      by_rule: Array<{ rule_name: string; count: number }>;
+      by_alert_status: Array<{ alert_status: string; count: number }>;
+    }>("/api/analysis/fraud"),
 };
 
 export const auditApi = {
   list: (limit = 40) => apiRequest<AuditLog[]>("/api/audit-logs", { query: { limit } }),
 };
 
+export interface ApiReport {
+  id: number;
+  report_type: string;
+  start_date: string;
+  end_date: string;
+  generated_by: number;
+  created_at: string;
+  report_data: {
+    period: {
+      start_date: string;
+      end_date: string;
+    };
+    summary: {
+      total_transactions: number;
+      normal_transactions: number;
+      suspicious_transactions: number;
+      fraud_alert_count: number;
+      total_transaction_value: number;
+    };
+    daily_trends: Array<{
+      date: string;
+      transaction_count: number;
+      total_value: number;
+      suspicious_count: number;
+    }>;
+    distribution_by_type: Array<{
+      category: string;
+      transaction_count: number;
+      total_value: number;
+      suspicious_count: number;
+    }>;
+    distribution_by_location: Array<{
+      category: string;
+      transaction_count: number;
+      total_value: number;
+      suspicious_count: number;
+    }>;
+    alerts_by_rule: Array<{
+      rule_name: string;
+      count: number;
+    }>;
+  };
+}
+
+export interface ApiReportListItem {
+  id: number;
+  report_type: string;
+  start_date: string;
+  end_date: string;
+  generated_by: number;
+  created_at: string;
+}
+
 export const reportsApi = {
-  generate: (payload: { report_type: string; start_date: string; end_date: string }) =>
-    apiRequest<Report>("/api/reports/generate", { method: "POST", body: payload }),
-  list: () => apiRequest<Report[]>("/api/reports"),
-  get: (id: number) => apiRequest<Report>(`/api/reports/${id}`),
+  generate: (payload: {
+    report_type: string;
+    start_date: string;
+    end_date: string;
+  }) =>
+    apiRequest<ApiReport>("/api/reports/generate", {
+      method: "POST",
+      body: {
+        ...payload,
+        start_date: `${payload.start_date}T00:00:00Z`,
+        end_date: `${payload.end_date}T23:59:59Z`,
+      },
+    }),
+
+  list: () =>
+    apiRequest<{
+      items: ApiReportListItem[];
+      total: number;
+      page: number;
+      page_size: number;
+      total_pages: number;
+    }>("/api/reports?page=1&page_size=20"),
+
+  get: (id: number) => apiRequest<ApiReport>(`/api/reports/${id}`),
 };

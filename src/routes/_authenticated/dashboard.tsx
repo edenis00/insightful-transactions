@@ -26,7 +26,10 @@ function Dashboard() {
   const trends = useQuery({ queryKey: ["analysis", "trends", 14], queryFn: () => analysisApi.trends(14) });
   const breakdown = useQuery({ queryKey: ["analysis", "breakdown"], queryFn: () => analysisApi.breakdown(), enabled: staff });
   const recent = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => transactionsApi.list({ page_size: 8 }) });
-  const alerts = useQuery({ queryKey: ["alerts", "open"], queryFn: () => alertsApi.list({ status: "New", page_size: 5 }) });
+  const alerts = useQuery({
+    queryKey: ["alerts", "open"],
+    queryFn: () => alertsApi.list({ alert_status: "new", page_size: 5 }),
+  });
   const s = summary.data;
   const peak = trends.data ? Math.max(...trends.data.map((p) => p.count), 1) : 1;
 
@@ -58,17 +61,26 @@ function Dashboard() {
           <div className="divide-y divide-line/40">
             {!alerts.data ? <PanelLoading /> : alerts.data.items.length === 0 ? (
               <div className="p-4 text-[11px] text-mut">No new alerts.</div>
-            ) : alerts.data.items.map((a) => (
-              <Link key={a.id} to="/transactions/$id" params={{ id: String(a.transaction_id) }} className="block p-3 hover:bg-panel/40">
+            ) : alerts.data.items.map((alert) => (
+              <Link
+                key={alert.id}
+                to="/transactions/$id"
+                params={{ id: String(alert.transaction.id) }}
+                className="block p-3 hover:bg-panel/40"
+              >
                 <div className="flex items-center gap-2">
-                  <span className="text-[11.5px] text-ink">{a.alert_reference}</span>
-                  <StatusPill status={a.severity} />
-                  <span className="ml-auto text-[11px]">{formatCurrency(a.amount)}</span>
+                  <span className="text-[11.5px] text-ink">Alert {alert.id}</span>
+                  <StatusPill status={alert.alert_status} />
+                  <span className="ml-auto text-[11px]">
+                    {formatCurrency(Number(alert.transaction.amount))}
+                  </span>
                 </div>
-                <div className="mt-1 text-[10.5px] text-mut">{a.department_name} · {a.masked_card_number} · {a.user_name}</div>
-                <div className="text-[10px] text-faint">{a.rule_name}</div>
+                <div className="mt-1 text-[10.5px] text-mut">
+                  {alert.transaction.transaction_reference} · {alert.transaction.location}
+                </div>
+                <div className="text-[10px] text-faint">{alert.rule_name}</div>
               </Link>
-            ))}
+            ))
           </div>
         </Panel>
       </section>
@@ -98,19 +110,35 @@ function Dashboard() {
         {!recent.data ? <PanelLoading /> : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead><tr><Th>Reference</Th><Th>Department</Th><Th>Card</Th><Th>User</Th><Th>Merchant</Th><Th>Location</Th><Th right>Amount</Th><Th>Time</Th><Th>Status</Th></tr></thead>
+              <thead>
+                <tr>
+                  <Th>Reference</Th>
+                  <Th>Card reference</Th>
+                  <Th>Type</Th>
+                  <Th>Location</Th>
+                  <Th right>Amount</Th>
+                  <Th>Time</Th>
+                  <Th>Fraud status</Th>
+                </tr>
+              </thead>
               <tbody className="divide-y divide-line/40">
-                {recent.data.items.map((t) => (
-                  <tr key={t.id} className="hover:bg-panel/40">
-                    <Td><Link to="/transactions/$id" params={{ id: String(t.id) }} className="text-ink hover:underline">{t.transaction_reference}</Link></Td>
-                    <Td className="text-mut">{t.department_name}</Td>
-                    <Td className="text-mut">{t.masked_card_number}</Td>
-                    <Td>{t.user_name}</Td>
-                    <Td className="text-mut">{t.merchant}</Td>
-                    <Td className="text-mut">{t.location}</Td>
-                    <Td right>{formatCurrency(t.amount)}</Td>
-                    <Td className="text-faint">{formatDateTime(t.transaction_time)}</Td>
-                    <Td><StatusPill status={t.status} /></Td>
+                {recent.data.items.map((transaction) => (
+                  <tr key={transaction.id} className="hover:bg-panel/40">
+                    <Td>
+                      <Link
+                        to="/transactions/$id"
+                        params={{ id: String(transaction.id) }}
+                        className="text-ink hover:underline"
+                      >
+                        {transaction.transaction_reference}
+                      </Link>
+                    </Td>
+                    <Td className="text-mut">{transaction.card_reference}</Td>
+                    <Td className="text-mut">{transaction.transaction_type}</Td>
+                    <Td className="text-mut">{transaction.location}</Td>
+                    <Td right>{formatCurrency(Number(transaction.amount))}</Td>
+                    <Td className="text-faint">{formatDateTime(transaction.transaction_date)}</Td>
+                    <Td><StatusPill status={transaction.fraud_status} /></Td>
                   </tr>
                 ))}
               </tbody>

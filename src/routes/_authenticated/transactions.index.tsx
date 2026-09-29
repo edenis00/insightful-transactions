@@ -2,89 +2,200 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
-import { Panel, PanelEmpty, PanelError, PanelLoading, Pager, StatusPill, Td, Th, inputCls, primaryBtnCls } from "@/components/ui-states";
-import { cardsApi, departmentsApi, transactionsApi, type TransactionQuery } from "@/lib/api/services";
+import {
+  Panel,
+  PanelEmpty,
+  PanelError,
+  PanelLoading,
+  Pager,
+  StatusPill,
+  Td,
+  Th,
+  inputCls,
+  primaryBtnCls,
+} from "@/components/ui-states";
+import { transactionsApi, type TransactionQuery } from "@/lib/api/services";
 import { formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
-import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/transactions/")({
   ssr: false,
-  head: () => ({
-    meta: [
-      { title: "Transaction History — Vantage Card Monitoring" },
-      { name: "description", content: "Search and filter recorded corporate card transactions by department, card, user, status, amount and date." },
-      { property: "og:title", content: "Transaction History — Vantage Card Monitoring" },
-      { property: "og:description", content: "Searchable history of corporate card transactions." },
-    ],
-  }),
   component: TransactionsPage,
 });
 
-const STATUSES = ["Normal", "Suspicious", "Flagged", "Reviewed", "Resolved", "Blocked"];
+const emptyFilters = {
+  transaction_reference: "",
+  transaction_type: "",
+  location: "",
+  fraud_status: "",
+  min_amount: "",
+  max_amount: "",
+  start_date: "",
+  end_date: "",
+};
 
 function TransactionsPage() {
-  const { user } = useAuth();
-  const staff = user?.role !== "CARD_USER";
-  const [f, setF] = useState<TransactionQuery>({});
+  const [filters, setFilters] = useState(emptyFilters);
+  const [applied, setApplied] = useState<TransactionQuery>({});
   const [page, setPage] = useState(1);
-  const depts = useQuery({ queryKey: ["departments"], queryFn: () => departmentsApi.list(), enabled: staff });
-  const cards = useQuery({ queryKey: ["cards", {}], queryFn: () => cardsApi.list() });
+  const pageSize = 15;
+
   const list = useQuery({
-    queryKey: ["transactions", f, page],
-    queryFn: () => transactionsApi.list({ ...f, page, page_size: 15 }),
+    queryKey: ["transactions", applied, page, pageSize],
+    queryFn: () =>
+      transactionsApi.list({
+        ...applied,
+        page,
+        page_size: pageSize,
+      }),
   });
-  const set = (k: keyof TransactionQuery, v: string) => { setPage(1); setF((o) => ({ ...o, [k]: v || undefined })); };
-  const pages = Math.max(1, Math.ceil((list.data?.total ?? 0) / 15));
+
+  function applyFilters() {
+    setPage(1);
+    setApplied({
+      transaction_reference: filters.transaction_reference || undefined,
+      transaction_type: filters.transaction_type || undefined,
+      location: filters.location || undefined,
+      fraud_status:
+        filters.fraud_status === "normal" || filters.fraud_status === "suspicious"
+          ? filters.fraud_status
+          : undefined,
+      min_amount: filters.min_amount ? Number(filters.min_amount) : undefined,
+      max_amount: filters.max_amount ? Number(filters.max_amount) : undefined,
+      start_date: filters.start_date || undefined,
+      end_date: filters.end_date ? `${filters.end_date}T23:59:59` : undefined,
+    });
+  }
+
+  function resetFilters() {
+    setFilters(emptyFilters);
+    setApplied({});
+    setPage(1);
+  }
+
+  const total = list.data?.total ?? 0;
+  const pages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <AppShell title="Transactions" subtitle="Recorded corporate card activity">
+    <AppShell title="Transactions" subtitle="Recorded transaction activity">
       <Panel
         title="Transaction history"
-        subtitle={`${formatNumber(list.data?.total ?? 0)} transactions match`}
-        action={<Link to="/transactions/new" className={primaryBtnCls}>Record transaction</Link>}
+        subtitle={`${formatNumber(total)} transactions match`}
+        action={
+          <Link to="/transactions/new" className={primaryBtnCls}>
+            Record transaction
+          </Link>
+        }
       >
-        <div className="grid gap-2 border-b border-line/60 p-3 sm:grid-cols-3 lg:grid-cols-6">
-          <input className={inputCls} placeholder="Search ref, merchant, user" onChange={(e) => set("search", e.target.value)} />
-          {staff ? (
-            <select className={inputCls} onChange={(e) => set("department_id", e.target.value)}>
-              <option value="">All departments</option>
-              {depts.data?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
-          ) : null}
-          <select className={inputCls} onChange={(e) => set("card_id", e.target.value)}>
-            <option value="">All cards</option>
-            {cards.data?.map((c) => <option key={c.id} value={c.id}>{c.masked_card_number}</option>)}
+        <div className="grid gap-2 border-b border-line/60 p-3 sm:grid-cols-2 lg:grid-cols-4">
+          <input
+            className={inputCls}
+            placeholder="Transaction reference"
+            value={filters.transaction_reference}
+            onChange={(event) =>
+              setFilters({ ...filters, transaction_reference: event.target.value })
+            }
+          />
+          <input
+            className={inputCls}
+            placeholder="Transaction type"
+            value={filters.transaction_type}
+            onChange={(event) =>
+              setFilters({ ...filters, transaction_type: event.target.value })
+            }
+          />
+          <input
+            className={inputCls}
+            placeholder="Location"
+            value={filters.location}
+            onChange={(event) => setFilters({ ...filters, location: event.target.value })}
+          />
+          <select
+            className={inputCls}
+            value={filters.fraud_status}
+            onChange={(event) => setFilters({ ...filters, fraud_status: event.target.value })}
+          >
+            <option value="">All fraud statuses</option>
+            <option value="normal">Normal</option>
+            <option value="suspicious">Suspicious</option>
           </select>
-          <select className={inputCls} onChange={(e) => set("status", e.target.value)}>
-            <option value="">All statuses</option>
-            {STATUSES.map((s) => <option key={s}>{s}</option>)}
-          </select>
-          <input className={inputCls} type="number" placeholder="Min ₦" onChange={(e) => set("min_amount", e.target.value)} />
-          <input className={inputCls} type="number" placeholder="Max ₦" onChange={(e) => set("max_amount", e.target.value)} />
-          <input className={inputCls} type="date" title="From" onChange={(e) => set("start_date", e.target.value)} />
-          <input className={inputCls} type="date" title="To" onChange={(e) => set("end_date", e.target.value)} />
-          <input className={inputCls} placeholder="Location" onChange={(e) => set("location", e.target.value)} />
+          <input
+            className={inputCls}
+            type="number"
+            min="0"
+            placeholder="Minimum amount"
+            value={filters.min_amount}
+            onChange={(event) => setFilters({ ...filters, min_amount: event.target.value })}
+          />
+          <input
+            className={inputCls}
+            type="number"
+            min="0"
+            placeholder="Maximum amount"
+            value={filters.max_amount}
+            onChange={(event) => setFilters({ ...filters, max_amount: event.target.value })}
+          />
+          <input
+            className={inputCls}
+            type="date"
+            title="From date"
+            value={filters.start_date}
+            onChange={(event) => setFilters({ ...filters, start_date: event.target.value })}
+          />
+          <input
+            className={inputCls}
+            type="date"
+            title="To date"
+            value={filters.end_date}
+            onChange={(event) => setFilters({ ...filters, end_date: event.target.value })}
+          />
+          <div className="flex gap-2 sm:col-span-2 lg:col-span-4">
+            <button type="button" className={primaryBtnCls} onClick={applyFilters}>
+              Apply filters
+            </button>
+            <button type="button" className={inputCls} onClick={resetFilters}>
+              Reset
+            </button>
+          </div>
         </div>
-        {list.isLoading ? <PanelLoading /> : list.isError ? (
-          <PanelError message="Transactions could not be loaded." onRetry={() => void list.refetch()} />
-        ) : list.data!.items.length === 0 ? <PanelEmpty message="No transactions match these filters." /> : (
+
+        {list.isLoading ? (
+          <PanelLoading label="Loading transactions" />
+        ) : list.isError ? (
+          <PanelError
+            message="Transactions could not be loaded."
+            onRetry={() => void list.refetch()}
+          />
+        ) : list.data.items.length === 0 ? (
+          <PanelEmpty message="No transactions match these filters." />
+        ) : (
           <>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead><tr><Th>Reference</Th><Th>Department</Th><Th>Card</Th><Th>User</Th><Th>Merchant</Th><Th>Type</Th><Th>Location</Th><Th right>Amount</Th><Th>Time</Th><Th>Status</Th></tr></thead>
+                <thead>
+                  <tr>
+                    <Th>Reference</Th>
+                    <Th>Card reference</Th>
+                    <Th>Type</Th>
+                    <Th>Location</Th>
+                    <Th right>Amount</Th>
+                    <Th>Date</Th>
+                    <Th>Fraud status</Th>
+                  </tr>
+                </thead>
                 <tbody className="divide-y divide-line/40">
-                  {list.data!.items.map((t) => (
-                    <tr key={t.id} className="hover:bg-panel/40">
-                      <Td><Link to="/transactions/$id" params={{ id: String(t.id) }} className="text-ink hover:underline">{t.transaction_reference}</Link></Td>
-                      <Td className="text-mut">{t.department_name}</Td>
-                      <Td className="text-mut">{t.masked_card_number}</Td>
-                      <Td>{t.user_name}{!t.authorised ? <span className="ml-1 text-[9.5px] text-alarm">unauthorised</span> : null}</Td>
-                      <Td className="text-mut">{t.merchant}</Td>
-                      <Td className="text-mut">{t.transaction_type}</Td>
-                      <Td className="text-mut">{t.location}</Td>
-                      <Td right>{formatCurrency(t.amount)}</Td>
-                      <Td className="text-faint">{formatDateTime(t.transaction_time)}</Td>
-                      <Td><StatusPill status={t.status} /></Td>
+                  {list.data.items.map((transaction) => (
+                    <tr key={transaction.id} className="hover:bg-panel/40">
+                      <Td>{transaction.transaction_reference}</Td>
+                      <Td className="text-mut">{transaction.card_reference}</Td>
+                      <Td className="text-mut">{transaction.transaction_type}</Td>
+                      <Td className="text-mut">{transaction.location}</Td>
+                      <Td right>{formatCurrency(Number(transaction.amount))}</Td>
+                      <Td className="text-faint">
+                        {formatDateTime(transaction.transaction_date)}
+                      </Td>
+                      <Td>
+                        <StatusPill status={transaction.fraud_status} />
+                      </Td>
                     </tr>
                   ))}
                 </tbody>

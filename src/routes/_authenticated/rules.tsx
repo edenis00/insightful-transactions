@@ -40,7 +40,7 @@ function RulesPage() {
           <div className="divide-y divide-line/40">
             <RuleRow
               name="High transaction amount"
-              description={`Any transaction of more than ${formatCurrency(rules.data.amountThreshold)} is flagged for review.`}
+              description={`At least ${rules.data.frequencyLimit} transactions on the same card within ${rules.data.frequencyWindowMinutes} minutes is flagged.`}
               setting={formatCurrency(rules.data.amountThreshold)}
               triggered={counts.get("High Transaction Amount")}
             />
@@ -48,13 +48,13 @@ function RulesPage() {
               name="High transaction frequency"
               description={`More than ${rules.data.frequencyLimit} transactions on the same card within ${rules.data.frequencyWindowMinutes} minutes is flagged.`}
               setting={`${rules.data.frequencyLimit} / ${rules.data.frequencyWindowMinutes} min`}
-              triggered={counts.get("High transaction frequency")}
+              triggered={counts.get("High Transaction Frequency")}
             />
             <RuleRow
               name="Unusual location"
               description="A transaction from a location the card has not previously used is flagged."
               setting="Card history"
-              triggered={counts.get("Unusual location")}
+              triggered={counts.get("Unusual Location")}
             />
           </div>
         )}
