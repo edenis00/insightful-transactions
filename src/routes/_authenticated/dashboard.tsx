@@ -80,7 +80,7 @@ function Dashboard() {
                 </div>
                 <div className="text-[10px] text-faint">{alert.rule_name}</div>
               </Link>
-            ))
+            ))}
           </div>
         </Panel>
       </section>
