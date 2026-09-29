@@ -8,7 +8,7 @@
  */
 import { mockHandler } from "./mock-handler";
 
-export const API_BASE_URL = import.meta.env["VITE_API_BASE_URL"] ?? "";
+export const API_BASE_URL = (import.meta.env["VITE_API_BASE_URL"] ?? "").replace(/\/+$/, "");
 export const TOKEN_KEY = "vantage_token";
 
 export class ApiError extends Error {
@@ -46,6 +46,20 @@ function buildQuery(query?: RequestOptions["query"]) {
   return s ? `?${s}` : "";
 }
 
+function buildApiUrl(path: string, query?: RequestOptions["query"]) {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const normalizedBase = API_BASE_URL.replace(/\/api(?:\/v1)?$/i, "");
+  const withoutApiPrefix = cleanPath.replace(/^\/api(?:\/v1)?/i, "");
+  const withApiPrefix = `/api${withoutApiPrefix || ""}`;
+  const suffix = buildQuery(query);
+
+  if (!normalizedBase) {
+    return `${withApiPrefix}${suffix}`;
+  }
+
+  return `${normalizedBase}${withApiPrefix}${suffix}`;
+}
+
 export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
@@ -57,7 +71,7 @@ export async function apiRequest<T>(
     return mockHandler<T>(path, { method, body, query, token });
   }
 
-  const res = await fetch(`${API_BASE_URL}${path}${buildQuery(query)}`, {
+  const res = await fetch(buildApiUrl(path, query), {
     method,
     headers: {
       "Content-Type": "application/json",

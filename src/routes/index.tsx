@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api/client";
@@ -60,19 +60,9 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-5 py-10">
       <div className="rise w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-2.5">
-          <div className="grid size-8 place-items-center rounded-md bg-panel ring-1 ring-inset ring-line">
-            <span className="font-display font-bold leading-none text-ink">V</span>
-          </div>
-          <div className="leading-tight">
-            <div className="font-display text-[15px] font-semibold tracking-tight">Vantage</div>
-            <div className="text-[9px] uppercase tracking-[0.18em] text-faint">Fraud Console</div>
-          </div>
-        </div>
-
         <div className="rounded-lg bg-surface p-5 ring-1 ring-inset ring-line">
           <h1 className="font-display text-[16px] font-semibold tracking-tight">Sign in</h1>
-          <p className="mt-1 text-[10px] text-faint">Corporate card monitoring · authorised staff only</p>
+          <p className="mt-1 text-[10px] text-faint">Corporate card monitoring</p>
 
           {expired ? (
             <div className="mt-4 rounded-md bg-warn/10 px-3 py-2 text-[11px] text-warn ring-1 ring-inset ring-warn/30">
@@ -111,18 +101,17 @@ function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-4 border-t border-line/70 pt-3 text-[10px] text-faint">
-            Accounts are issued by the administrator. Demo logins (password vantage123):
-            <div className="mt-1 space-y-0.5 text-mut">
-              <div>admin@vantage.demo · Administrator</div>
-              <div>analyst@vantage.demo · Fraud Analyst</div>
-            </div>
+         <div className="mt-4 border-t border-line/70 pt-3 text-center text-[10px] text-faint">
+            Need an account?{" "}
+            <Link
+              to="/register"
+              className="font-medium text-mut transition-colors hover:text-ink"
+            >
+              Create an analyst account
+            </Link>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-[10px] text-faint">
-          Demonstration system · simulated transaction data · no live payments
-        </p>
       </div>
     </div>
   );
