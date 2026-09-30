@@ -63,23 +63,40 @@ export function Panel({
   );
 }
 
-const ALARM = ["Suspicious", "Flagged", "Blocked", "New", "Confirmed", "High"];
-const WARN = ["Under Review", "Medium", "Reviewed"];
-const CLEAR = ["Normal", "Resolved", "False Positive", "active", "Low"];
+const ALARM = new Set(["suspicious", "flagged", "blocked", "new", "confirmed", "high"]);
+const WARN = new Set(["under review", "medium", "reviewed"]);
+const CLEAR = new Set(["normal", "resolved", "false positive", "active", "low"]);
 
 export function StatusPill({ status }: { status: string }) {
-  const kind = ALARM.includes(status) ? "alarm" : WARN.includes(status) ? "warn" : CLEAR.includes(status) ? "clear" : "mut";
+  const normalized = status.trim().replace(/_/g, " ").toLowerCase();
+  const kind = ALARM.has(normalized)
+    ? "alarm"
+    : WARN.has(normalized)
+      ? "warn"
+      : CLEAR.has(normalized)
+        ? "clear"
+        : "mut";
+
   const tone = {
     alarm: "bg-alarm/10 ring-alarm/30 text-alarm",
     warn: "bg-warn/15 ring-warn/30 text-warn",
     clear: "bg-clear/10 ring-clear/25 text-clear",
     mut: "bg-panel ring-line text-mut",
   }[kind];
-  const dot = { alarm: "bg-alarm", warn: "bg-warn", clear: "bg-clear", mut: "bg-mut" }[kind];
+
+  const dot = {
+    alarm: "bg-alarm",
+    warn: "bg-warn",
+    clear: "bg-clear",
+    mut: "bg-mut",
+  }[kind];
+
+  const label = normalized.replace(/\b\w/g, (letter) => letter.toUpperCase());
+
   return (
     <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] ring-1 ring-inset ${tone}`}>
       <span className={`size-1.5 rounded-full ${dot}`} />
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {label}
     </span>
   );
 }

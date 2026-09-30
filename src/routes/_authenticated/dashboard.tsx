@@ -5,6 +5,7 @@ import { Panel, PanelLoading, Stat, StatusPill, Td, Th } from "@/components/ui-s
 import { alertsApi, analysisApi, transactionsApi } from "@/lib/api/services";
 import { formatCompactCurrency, formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
+import { Panel, PanelEmpty, PanelError, PanelLoading, Stat, StatusPill, Td, Th } from "@/components/ui-states";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   ssr: false,
@@ -45,15 +46,34 @@ function Dashboard() {
       <section className="grid gap-4 lg:grid-cols-3">
         <Panel title="Activity, last 14 days" subtitle="Suspicious share in red" className="lg:col-span-2">
           <div className="p-4">
-            {!trends.data ? <PanelLoading /> : (
+            {trends.isLoading ? (
+              <PanelLoading label="Loading activity" />
+            ) : trends.isError ? (
+              <PanelError
+                message={trends.error instanceof Error ? trends.error.message : "Could not load activity."}
+                onRetry={() => void trends.refetch()}
+              />
+            ) : trends.data?.length ? (
               <div className="flex h-40 items-end gap-1.5">
-                {trends.data.map((p) => (
-                  <div key={p.date} className="flex flex-1 flex-col justify-end gap-0.5" title={`${p.count} transactions, ${p.suspicious} suspicious`}>
-                    <div className="rounded-sm bg-alarm/70" style={{ height: `${(p.suspicious / peak) * 100}%` }} />
-                    <div className="rounded-sm bg-panel ring-1 ring-inset ring-line/60" style={{ height: `${Math.max(4, ((p.count - p.suspicious) / peak) * 100)}%` }} />
+                {trends.data.map((point) => (
+                  <div
+                    key={point.date}
+                    className="flex flex-1 flex-col justify-end gap-0.5"
+                    title={`${point.date}: ${point.count} transactions, ${point.suspicious} suspicious`}
+                  >
+                    <div
+                      className="rounded-sm bg-alarm/70"
+                      style={{ height: `${(point.suspicious / peak) * 100}%` }}
+                    />
+                    <div
+                      className="rounded-sm bg-panel ring-1 ring-inset ring-line/60"
+                      style={{ height: `${Math.max(4, ((point.count - point.suspicious) / peak) * 100)}%` }}
+                    />
                   </div>
                 ))}
               </div>
+            ) : (
+              <PanelEmpty message="No transaction activity in the last 14 days." />
             )}
           </div>
         </Panel>

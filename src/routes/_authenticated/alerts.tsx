@@ -110,7 +110,16 @@ function AlertsPage() {
           <>
             <div className="divide-y divide-line/40">
               {list.data.items.map((alert) => (
-                <div key={alert.id} className="space-y-2 p-4">
+                <div
+                  key={alert.id}
+                  className={`space-y-2 border-l-2 p-4 ${
+                    alert.alert_status === "new"
+                      ? "border-alarm bg-alarm/5"
+                      : alert.alert_status === "under_review"
+                        ? "border-warn bg-warn/5"
+                        : "border-transparent"
+                  }`}
+                >
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="font-display text-[13px] font-semibold">
                       Alert {alert.id}

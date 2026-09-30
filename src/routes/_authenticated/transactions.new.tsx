@@ -2,10 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { AppShell } from "@/components/AppShell";
-import { FormField, Panel, StatusPill, inputCls, primaryBtnCls } from "@/components/ui-states";
 import { cardsApi, transactionsApi } from "@/lib/api/services";
 import { ApiError } from "@/lib/api/client";
 import { formatCurrency, formatDateTime, toLocalInputValue } from "@/lib/format";
+import { FormField, Panel, StatusPill, inputCls, primaryBtnCls, btnCls } from "@/components/ui-states";
 
 export const Route = createFileRoute("/_authenticated/transactions/new")({
   ssr: false,
@@ -170,6 +170,8 @@ function NewTransaction() {
       void queryClient.invalidateQueries({ queryKey: ["alerts"] });
       void queryClient.invalidateQueries({ queryKey: ["analysis"] });
       setError("");
+      setReference(makeReference());
+      setAmount("");
     },
     onError: (e) => {
       setError(e instanceof ApiError ? e.message : "The transaction could not be recorded.");
@@ -198,13 +200,14 @@ function NewTransaction() {
       location,
       transaction_date: new Date(date).toISOString(),
     });
+    
   }
 
   const result = create.data;
 
   return (
     <AppShell title="Record Transaction" subtitle="Submit a transaction for fraud evaluation">
-      <div className="grid gap-4 lg:grid-cols-5">
+      <div className="grid gap-4 xl:grid-cols-2">
         <Panel title="Transaction details" className="lg:col-span-3">
           <form onSubmit={submit} className="grid gap-3 p-4 sm:grid-cols-2">
             <FormField label="Card">
@@ -227,12 +230,23 @@ function NewTransaction() {
             </FormField>
 
             <FormField label="Transaction reference">
-              <input
-                className={inputCls}
-                value={reference}
-                onChange={(event) => setReference(event.target.value)}
-                required
-              />
+              <div className="flex gap-2">
+                <input
+                  className={inputCls}
+                  value={reference}
+                  onChange={(event) => setReference(event.target.value)}
+                  required
+                />
+                <button
+                  type="button"
+                  className={btnCls}
+                  title="Generate a new reference"
+                  aria-label="Generate a new transaction reference"
+                  onClick={() => setReference(makeReference())}
+                >
+                  ↻
+                </button>
+              </div>
             </FormField>
 
             <FormField label="Amount (NGN)">
@@ -324,7 +338,7 @@ function NewTransaction() {
           </div>
         </Panel>
 
-        <Panel title="Evaluation result" subtitle="Fraud checks run when the backend records the transaction" className="lg:col-span-2">
+        <Panel title="Evaluation result" subtitle="Fraud checks run when the backend records the transaction" className="xl:col-span-3">
           {!result ? (
             <div className="p-4 text-[11px] text-mut">Submit a transaction to see the result.</div>
           ) : (
