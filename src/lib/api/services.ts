@@ -78,6 +78,36 @@ export const authApi = {
   me: async () => mapUser(await apiRequest<ApiUser>("/api/auth/me")),
 };
 
+export interface AdminApiUser {
+  id: number;
+  full_name: string;
+  email: string;
+  role: "admin" | "analyst" | "user";
+  created_at: string;
+}
+
+export const adminApi = {
+  listUsers: () => apiRequest<AdminApiUser[]>("/api/admin/users"),
+
+  createUser: (payload: {
+    full_name: string;
+    email: string;
+    password: string;
+    role: AdminApiUser["role"];
+    department_id?: number | null;
+  }) =>
+    apiRequest<AdminApiUser>("/api/admin/users", {
+      method: "POST",
+      body: payload,
+    }),
+
+  updateUserRole: (userId: number, role: AdminApiUser["role"]) =>
+    apiRequest<AdminApiUser>(`/api/admin/users/${userId}/role`, {
+      method: "PATCH",
+      body: { role },
+    }),
+};
+
 export const departmentsApi = {
   list: () => apiRequest<Department[]>("/api/departments"),
   get: (id: number) => apiRequest<Department>(`/api/departments/${id}`),
@@ -90,17 +120,27 @@ export const departmentsApi = {
 export const cardsApi = {
   list: (query: { department_id?: number; status?: string; search?: string } = {}) =>
     apiRequest<Card[]>("/api/cards", { query: query as never }),
-  create: (payload: {
-    last_four: string;
+    create: (payload: {
+    card_reference: string;
+    masked_card_number: string;
     department_id: number;
-    assigned_user_id: number | null;
-    card_type: string;
-    issue_date: string;
-    expiry_date: string;
+    assigned_user_id?: number | null;
+    card_type?: string | null;
+    issue_date?: string | null;
+    expiry_date?: string | null;
+    status?: string;
   }) => apiRequest<Card>("/api/cards", { method: "POST", body: payload }),
   update: (
     id: number,
-    payload: { assigned_user_id?: number | null; status?: "active" | "inactive"; card_type?: string },
+    payload: {
+      masked_card_number?: string;
+      department_id?: number;
+      assigned_user_id?: number | null;
+      card_type?: string | null;
+      issue_date?: string | null;
+      expiry_date?: string | null;
+      status?: string;
+    },
   ) => apiRequest<Card>(`/api/cards/${id}`, { method: "PUT", body: payload }),
 };
 

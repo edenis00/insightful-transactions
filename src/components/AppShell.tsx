@@ -6,14 +6,17 @@ import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { analysisApi } from "@/lib/api/services";
 
-type NavItem = { to: "/dashboard" | "/transactions" | "/transactions/new" | "/alerts"; label: string; alarm?: boolean; admin?: boolean };
+type NavItem = { to: "/dashboard" | "/transactions" | "/transactions/new" | "/alerts"  | "/admin/users" | "/admin/setup"; label: string; alarm?: boolean; admin?: boolean };
 const monitorLinks: NavItem[] = [
   { to: "/dashboard", label: "Dashboard" },
   { to: "/transactions/new", label: "Record Transaction" },
   { to: "/transactions", label: "Transactions" },
   { to: "/alerts", label: "Alerts", alarm: true },
+  
 ];
 const orgLinks: NavItem[] = [
+  { to: "/admin/users", label: "User management", admin: true },
+  { to: "/admin/setup", label: "Departments & cards", admin: true },
 ];
 const ROLE_LABEL = { ADMIN: "Administrator", FRAUD_ANALYST: "Fraud Analyst", CARD_USER: "Card User" } as const;
 
@@ -38,7 +41,7 @@ export function AppShell({
 
   const isStaff = user?.role !== "CARD_USER";
   const monitor = monitorLinks.filter((l) => isStaff || !l.admin);
-  const org = isStaff ? orgLinks : [];
+  const org = user?.role === "ADMIN" ? orgLinks : [];
   const initials = (user?.full_name ?? "AO")
     .split(" ")
     .map((p) => p[0])
