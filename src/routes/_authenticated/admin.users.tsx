@@ -6,7 +6,7 @@ import { Panel, PanelEmpty, PanelError, PanelLoading, inputCls, primaryBtnCls } 
 import { adminApi, departmentsApi } from "@/lib/api/services";
 import { useAuth } from "@/lib/auth";
 
-export const Route = createFileRoute("/_authenticated/admin.users")({
+export const Route = createFileRoute("/_authenticated/admin/users")({
   ssr: false,
   component: AdminUsersPage,
 });

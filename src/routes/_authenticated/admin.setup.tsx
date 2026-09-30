@@ -7,7 +7,7 @@ import { Panel, PanelEmpty, PanelError, PanelLoading, inputCls, primaryBtnCls, b
 import { useState } from "react";
 import type { Card, Department } from "@/lib/api/types";
 
-export const Route = createFileRoute("/_authenticated/admin.setup")({
+export const Route = createFileRoute("/_authenticated/admin/setup")({
   ssr: false,
   component: AdminSetupPage,
 });
