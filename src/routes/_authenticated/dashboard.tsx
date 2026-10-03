@@ -1,8 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
-import { Panel, PanelLoading, Stat, StatusPill, Td, Th } from "@/components/ui-states";
-import { alertsApi, analysisApi, transactionsApi } from "@/lib/api/services";
+;import { alertsApi, analysisApi, transactionsApi } from "@/lib/api/services";
 import { formatCompactCurrency, formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { Panel, PanelEmpty, PanelError, PanelLoading, Stat, StatusPill, Td, Th } from "@/components/ui-states";
