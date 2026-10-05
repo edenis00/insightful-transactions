@@ -106,6 +106,12 @@ export const adminApi = {
       method: "PATCH",
       body: { role },
     }),
+
+  updateAmountThreshold: (threshold: number) =>
+    apiRequest<{ threshold: number }>("/api/admin/settings/fraud-threshold", {
+      method: "PUT",
+      body: { threshold },
+    }),
 };
 
 export const departmentsApi = {
@@ -120,9 +126,9 @@ export const departmentsApi = {
 export const cardsApi = {
   list: (query: { department_id?: number; status?: string; search?: string } = {}) =>
     apiRequest<Card[]>("/api/cards", { query: query as never }),
-    create: (payload: {
-    card_reference: string;
-    masked_card_number: string;
+
+  create: (payload: {
+    last_four: string;
     department_id: number;
     assigned_user_id?: number | null;
     card_type?: string | null;
@@ -130,10 +136,10 @@ export const cardsApi = {
     expiry_date?: string | null;
     status?: string;
   }) => apiRequest<Card>("/api/cards", { method: "POST", body: payload }),
+
   update: (
     id: number,
     payload: {
-      masked_card_number?: string;
       department_id?: number;
       assigned_user_id?: number | null;
       card_type?: string | null;

@@ -1,9 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
-import { Panel, PanelLoading } from "@/components/ui-states";
-import { analysisApi } from "@/lib/api/services";
+import {
+  Panel,
+  PanelLoading,
+  inputCls,
+  primaryBtnCls,
+} from "@/components/ui-states";
+import { adminApi, analysisApi } from "@/lib/api/services";
 import { formatCurrency, formatNumber } from "@/lib/format";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/_authenticated/rules")({
   ssr: false,
@@ -13,66 +19,220 @@ export const Route = createFileRoute("/_authenticated/rules")({
       {
         name: "description",
         content:
-          "Inspect the rule-based fraud detection thresholds applied to every recorded transaction, including amount, frequency and location rules.",
+          "Review the transaction rules and spending-pattern checks used to identify suspicious activity.",
       },
       { property: "og:title", content: "Rules Configuration — Vantage Fraud Console" },
       {
         property: "og:description",
-        content: "Fraud detection thresholds applied to every recorded transaction.",
+        content: "Transaction rules and spending-pattern checks.",
       },
     ],
   }),
   component: RulesPage,
 });
 
-function RulesPage() {
-  const rules = useQuery({ queryKey: ["analysis", "rules"], queryFn: () => analysisApi.rules() });
-  const fraud = useQuery({ queryKey: ["analysis", "fraud"], queryFn: () => analysisApi.fraud() });
+const RULES = [
+  {
+    name: "High Transaction Amount",
+    label: "High transaction amount",
+    description: (amountThreshold: number) =>
+      `Flags a transaction when its amount exceeds ${formatCurrency(amountThreshold)}.`,
+    setting: (amountThreshold: number) => formatCurrency(amountThreshold),
+  },
+  {
+    name: "High Transaction Frequency",
+    label: "High transaction frequency",
+    description: (amountThreshold: number, frequencyLimit: number, windowMinutes: number) =>
+      `Flags a card when it reaches ${frequencyLimit} transactions within ${windowMinutes} minutes.`,
+    setting: (_amountThreshold: number, frequencyLimit: number, windowMinutes: number) =>
+      `${frequencyLimit} transactions / ${windowMinutes} min`,
+  },
+  {
+    name: "Unusual Location",
+    label: "Unusual location",
+    description: () =>
+      "Flags a transaction when its location differs from the card’s established location pattern.",
+    setting: () => "Card history",
+  },
+  {
+    name: "Unusual Spending Pattern",
+    label: "Unusual spending pattern",
+    description: () =>
+      "After at least 5 previous transactions, flags an amount that is unusually high compared with the card’s spending history.",
+    setting: () => "Median + 3× MAD",
+  },
+];
 
-  const counts = new Map(fraud.data?.by_rule.map((r) => [r.rule_name, r.count]) ?? []);
+function RulesPage() {
+  const rules = useQuery({
+    queryKey: ["analysis", "rules"],
+    queryFn: () => analysisApi.rules(),
+  });
+  const fraud = useQuery({
+    queryKey: ["analysis", "fraud"],
+    queryFn: () => analysisApi.fraud(),
+  });
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const updateThreshold = useMutation({
+    mutationFn: adminApi.updateAmountThreshold,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["analysis", "rules"] });
+    },
+  });
+
+  const counts = new Map(
+    fraud.data?.by_rule.map((rule) => [rule.rule_name, rule.count]) ?? [],
+  );
+  const chartData = RULES.map((rule) => ({
+    ...rule,
+    count: counts.get(rule.name) ?? 0,
+  }));
+  const maxCount = Math.max(1, ...chartData.map((rule) => rule.count));
 
   return (
-    <AppShell title="Rules Configuration" subtitle="Detection thresholds applied by the rule engine">
-      <Panel title="Active Rules" subtitle="Every transaction is evaluated against each rule at the point of entry">
+    <AppShell
+      title="Rules Configuration"
+      subtitle="Transaction rules and spending-pattern checks applied during evaluation"
+    >
+      <Panel
+        title="Active Detection Checks"
+        subtitle="The server evaluates each new transaction against these criteria."
+      >
         {rules.isLoading || !rules.data ? (
           <PanelLoading label="Loading rule configuration" />
+        ) : rules.isError ? (
+          <div className="p-4 text-[12px] text-alarm">
+            Rule configuration could not be loaded.
+          </div>
         ) : (
           <div className="divide-y divide-line/40">
-            <RuleRow
-              name="High transaction amount"
-              description={`At least ${rules.data.frequencyLimit} transactions on the same card within ${rules.data.frequencyWindowMinutes} minutes is flagged.`}
-              setting={formatCurrency(rules.data.amountThreshold)}
-              triggered={counts.get("High Transaction Amount")}
-            />
-            <RuleRow
-              name="High transaction frequency"
-              description={`More than ${rules.data.frequencyLimit} transactions on the same card within ${rules.data.frequencyWindowMinutes} minutes is flagged.`}
-              setting={`${rules.data.frequencyLimit} / ${rules.data.frequencyWindowMinutes} min`}
-              triggered={counts.get("High Transaction Frequency")}
-            />
-            <RuleRow
-              name="Unusual location"
-              description="A transaction from a location the card has not previously used is flagged."
-              setting="Card history"
-              triggered={counts.get("Unusual Location")}
-            />
+            {chartData.map((rule) => {
+              const description = rule.description(
+                rules.data.amountThreshold,
+                rules.data.frequencyLimit,
+                rules.data.frequencyWindowMinutes,
+              );
+              const setting = rule.setting(
+                rules.data.amountThreshold,
+                rules.data.frequencyLimit,
+                rules.data.frequencyWindowMinutes,
+              );
+
+              return (
+                <RuleRow
+                  key={rule.name}
+                  name={rule.label}
+                  description={description}
+                  setting={setting}
+                  triggered={rule.count}
+                />
+              );
+            })}
           </div>
         )}
       </Panel>
 
-      <Panel title="How Detection Works" subtitle="Recording, monitoring, detection, alerting, analysis">
+      <Panel
+        title="Alerts by Detection Check"
+        subtitle="Total alerts recorded for your account, grouped by the rule that triggered them."
+      >
+        {fraud.isLoading ? (
+          <PanelLoading label="Loading alert counts" />
+        ) : fraud.isError ? (
+          <div className="p-4 text-[12px] text-alarm">
+            Alert counts could not be loaded.
+          </div>
+        ) : (
+          <div className="space-y-4 p-4">
+            {chartData.every((rule) => rule.count === 0) ? (
+              <p className="text-[12px] text-mut">
+                No rule-triggered alerts have been recorded yet.
+              </p>
+            ) : (
+              chartData.map((rule) => (
+                <div key={rule.name} className="grid grid-cols-[9rem_1fr_3rem] items-center gap-3">
+                  <span className="truncate text-[11px] text-mut" title={rule.label}>
+                    {rule.label}
+                  </span>
+                  <div
+                    className="h-2 overflow-hidden rounded-full bg-panel"
+                    role="img"
+                    aria-label={`${rule.label}: ${rule.count} alerts`}
+                  >
+                    <div
+                      className="h-full rounded-full bg-alarm transition-[width]"
+                      style={{ width: `${(rule.count / maxCount) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-right text-[11px] text-ink">
+                    {formatNumber(rule.count)}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </Panel>
+
+      {user?.role === "ADMIN" && rules.data ? (
+        <Panel
+          title="Amount Limit"
+          subtitle="This organization-wide limit applies to future transactions."
+        >
+          <form
+            className="flex flex-wrap items-end gap-3 p-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const form = new FormData(event.currentTarget);
+              updateThreshold.mutate(Number(form.get("threshold")));
+            }}
+          >
+            <label className="min-w-56 flex-1 text-[10px] uppercase tracking-[0.14em] text-faint">
+              Fixed amount limit (NGN)
+              <input
+                className={`${inputCls} mt-1`}
+                name="threshold"
+                type="number"
+                min="0.01"
+                step="0.01"
+                defaultValue={rules.data.amountThreshold}
+                required
+              />
+            </label>
+            <button className={primaryBtnCls} disabled={updateThreshold.isPending}>
+              {updateThreshold.isPending ? "Saving…" : "Save limit"}
+            </button>
+            {updateThreshold.isError ? (
+              <p className="w-full text-[12px] text-alarm">
+                {updateThreshold.error.message}
+              </p>
+            ) : null}
+            {updateThreshold.isSuccess ? (
+              <p className="w-full text-[12px] text-clear">
+                Limit saved. New transactions will use it.
+              </p>
+            ) : null}
+          </form>
+        </Panel>
+      ) : null}
+
+      <Panel
+        title="How Detection Works"
+        subtitle="From transaction recording through alert investigation"
+      >
         <ol className="space-y-3 p-4 text-[12px] text-mut">
           {[
-            "A transaction is recorded manually or by simulation and stored with its reference, card, amount, type, location and time.",
-            "The rule engine evaluates the transaction against every active rule immediately, on the server.",
-            "If no rule is triggered the transaction is marked normal and processed.",
-            "If one or more rules are triggered the transaction is marked suspicious and a fraud alert is generated with the reason and each rule name.",
-            "Alerts move through New, Under Review, Reviewed and Resolved as analysts work the queue.",
-            "All outcomes feed the analysis dashboards and the generated reports.",
-          ].map((step, i) => (
-            <li key={i} className="flex gap-3">
+            "A transaction is recorded manually or imported from a CSV file.",
+            "The server applies the amount, frequency, and location rules, and compares the amount with the card’s spending history when enough history is available.",
+            "If one or more checks are triggered, the transaction is marked suspicious and an alert is created with the reason and rule name.",
+            "Analysts review the alert and update its status as they investigate.",
+            "Transaction and alert outcomes feed the analysis dashboards and reports.",
+          ].map((step, index) => (
+            <li key={index} className="flex gap-3">
               <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-panel text-[10px] text-ink ring-1 ring-inset ring-line">
-                {i + 1}
+                {index + 1}
               </span>
               <span>{step}</span>
             </li>
@@ -81,8 +241,8 @@ function RulesPage() {
       </Panel>
 
       <div className="text-[10px] text-faint">
-        Thresholds are defined by the detection service and shown here for reference. Editing them requires
-        administrator access to the rule engine configuration.
+        The amount limit can be changed by an administrator. Frequency, location,
+        and spending-pattern checks use their current detection-service settings.
       </div>
     </AppShell>
   );
@@ -97,24 +257,30 @@ function RuleRow({
   name: string;
   description: string;
   setting: string;
-  triggered: number | undefined;
+  triggered: number;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-4 p-4">
       <div className="min-w-52 flex-1">
         <div className="flex items-center gap-2">
           <span className="size-1.5 rounded-full bg-clear" />
-          <span className="font-display text-[13px] font-semibold text-ink">{name}</span>
+          <span className="font-display text-[13px] font-semibold text-ink">
+            {name}
+          </span>
         </div>
         <div className="mt-1 text-[11.5px] text-mut">{description}</div>
       </div>
       <div className="text-right">
-        <div className="text-[9px] uppercase tracking-[0.14em] text-faint">Threshold</div>
+        <div className="text-[9px] uppercase tracking-[0.14em] text-faint">
+          Detection criteria
+        </div>
         <div className="mt-1 text-[12px] text-ink">{setting}</div>
       </div>
       <div className="text-right">
-        <div className="text-[9px] uppercase tracking-[0.14em] text-faint">Alerts raised</div>
-        <div className="mt-1 text-[12px] text-alarm">{formatNumber(triggered ?? 0)}</div>
+        <div className="text-[9px] uppercase tracking-[0.14em] text-faint">
+          Alerts raised
+        </div>
+        <div className="mt-1 text-[12px] text-alarm">{formatNumber(triggered)}</div>
       </div>
     </div>
   );
