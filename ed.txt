@@ -1,1 +1,1 @@
-sqlalchemy.exc.InvalidRequestError: When initializing mapper Mapper[User(users)], expression 'Department' failed to locate a name ('Department'). If this is a class name, consider adding this relationship() to the <class 'app.users.models.User'> class after both dependent classes have been defined.
+docker compose up --build
