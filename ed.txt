@@ -103,3 +103,41 @@ target frontend: failed to solve: process "/bin/sh -c npm ci" did not complete s
 
 
 (venv) C:\Users\xl\Documents\ChatGPT\backend-fraud-detection-app>cccc
+
+
+
+
+
+Okay, I’ll ignore the attached document.
+
+The new error still points to an out-of-sync frontend lockfile. Also, Docker sent **273 MB** as the frontend build context, likely including `node_modules`.
+
+In the same project folder shown in your terminal, run these commands in **Command Prompt**:
+
+```cmd
+cd /d C:\Users\xl\Documents\ChatGPT\backend-fraud-detection-app\insightful-transactions
+npm install
+npm ci
+```
+
+Both commands should finish successfully. `npm install` updates the lockfile; `npm ci` checks that it now matches `package.json`.
+
+Then create `insightful-transactions\.dockerignore` with:
+
+```text
+node_modules
+dist
+.output
+.vinxi
+.env
+.env.*
+```
+
+Finally, return to the project root and rebuild:
+
+```cmd
+cd ..
+docker compose up --build
+```
+
+The `ajv` messages are lockfile mismatch errors. Updating the lockfile inside `insightful-transactions` is the key fix. The frontend `.dockerignore` should also prevent Docker from transferring `node_modules` into the build context.
