@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
-;import { alertsApi, analysisApi, transactionsApi } from "@/lib/api/services";
+import { alertsApi, analysisApi, transactionsApi } from "@/lib/api/services";
 import { formatCompactCurrency, formatCurrency, formatDateTime, formatNumber } from "@/lib/format";
 import { useAuth } from "@/lib/auth";
 import { Panel, PanelEmpty, PanelError, PanelLoading, Stat, StatusPill, Td, Th } from "@/components/ui-states";
@@ -57,7 +57,7 @@ function Dashboard() {
                 {trends.data.map((point) => (
                   <div
                     key={point.date}
-                    className="flex flex-1 flex-col justify-end gap-0.5"
+                    className="flex h-full flex-1 flex-col justify-end gap-0.5"
                     title={`${point.date}: ${point.count} transactions, ${point.suspicious} suspicious`}
                   >
                     <div
