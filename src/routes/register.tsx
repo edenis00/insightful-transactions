@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api/client";
-import { Field } from "./index";
+import { Field, ThemeToggle } from "./index";
 
 export const Route = createFileRoute("/register")({
   ssr: false,
@@ -59,6 +59,9 @@ function RegisterPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-5 py-10">
       <div className="rise w-full max-w-sm">
+        <div className="mb-3 flex justify-end">
+          <ThemeToggle />
+        </div>
         <div className="mb-6 flex items-center gap-2.5">
           <div className="grid size-8 place-items-center rounded-md bg-panel ring-1 ring-inset ring-line">
             <span className="font-display font-bold leading-none text-ink">V</span>

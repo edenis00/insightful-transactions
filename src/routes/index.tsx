@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "@/lib/auth";
 import { ApiError } from "@/lib/api/client";
+import { Moon, Sun } from "lucide-react";
+import { useTheme } from "@/lib/theme";
 
 export const Route = createFileRoute("/")({
   ssr: false,
@@ -60,6 +62,9 @@ function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg px-5 py-10">
       <div className="rise w-full max-w-sm">
+        <div className="mb-3 flex justify-end">
+          <ThemeToggle />
+        </div>
         <div className="rounded-lg bg-surface p-5 ring-1 ring-inset ring-line">
           <h1 className="font-display text-[16px] font-semibold tracking-tight">Sign in</h1>
           <p className="mt-1 text-[10px] text-faint">Corporate card monitoring</p>
@@ -114,6 +119,24 @@ function LoginPage() {
 
       </div>
     </div>
+  );
+}
+
+export function ThemeToggle() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === "dark";
+
+  return (
+    <button
+      type="button"
+      onClick={toggleTheme}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className="inline-flex items-center gap-2 rounded-md bg-panel px-3 py-2 text-[11px] text-mut ring-1 ring-inset ring-line transition-colors hover:text-ink"
+    >
+      {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+      {isDark ? "Light mode" : "Dark mode"}
+    </button>
   );
 }
 
